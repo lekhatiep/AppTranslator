@@ -10,6 +10,8 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | 2026-11-22 | Runtime: **.NET 8** (`net8.0-windows10.0.19041.0`) | Build bằng SDK 9 có sẵn trên máy. .NET 8 hết hỗ trợ 10/11/2026, nâng lên .NET 10 khi cần |
 | 2026-11-22 | Chụp màn hình: làm **cả hai** engine sau `IScreenCapture` | (a) Windows.Graphics.Capture: chụp đúng cửa sổ, nhưng trên Win10 có viền vàng. (b) DXGI Desktop Duplication: không viền, overlay loại khỏi ảnh bằng `WDA_EXCLUDEFROMCAPTURE`, không chụp được khi cửa sổ bị che. Chọn engine trong cài đặt |
 | 2026-11-22 | Chưa có key Gemini | Stage 5 làm trước bằng `MockTranslator`, khi có key thì nối Gemini thật |
+| 2026-11-23 | Nhánh: mỗi stage tách `stage_<N>` từ `development` | |
+| 2026-11-23 | Overlay hai chế độ theo engine (hướng 1) | WGC: click-through hoàn toàn. DXGI: không lọt vào ảnh chụp, click trúng ô chữ bị overlay nhận (không tới game), click chỗ khác bình thường. Click-through cho DXGI để giai đoạn bảo trì |
 
 ## Đang chờ từ khách / người dùng
 
@@ -58,13 +60,19 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - 10 ảnh từ video (sáng/tối/lựa chọn/2 dòng) chép vào `samples/witcher3/images/video-*.png` để benchmark sơ bộ Stage 3; thư mục `images/` không đưa lên git
 - Ghi chú: `ProfileVersion` không tăng khi đổi vùng/cửa sổ vì không ảnh hưởng bản dịch trong cache
 
-## Stage 2 – Overlay và phím tắt (M) · FR-03, FR-06
-- [ ] Overlay WPF trong suốt: `WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`, TOPMOST
-- [ ] `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` cho overlay (bắt buộc với DXGI, nếu không overlay lọt vào ảnh chụp)
-- [ ] Manifest PerMonitorV2 DPI để vị trí overlay khớp pixel vật lý
-- [ ] Bám cửa sổ nguồn (`SetWinEventHook` LOCATIONCHANGE), xử lý DPI
-- [ ] Phím tắt toàn cục (`RegisterHotKey`): bật/tắt dịch, mở chọn vùng; đổi được trong cài đặt
-- **Xong khi:** chữ giả đè lên Chiaki, tay cầm vẫn điều khiển game, overlay không giành focus
+## Stage 2 – Overlay và phím tắt (M) · FR-03, FR-06 · ✅ xong 2026-11-23 (còn thử với Chiaki + tay cầm)
+- [x] Overlay hai chế độ theo engine chụp (quyết định 2026-11-23, xem “Quyết định đã chốt”):
+  - WGC: `AllowsTransparency` + `WS_EX_TRANSPARENT | NOACTIVATE | TOOLWINDOW`, TOPMOST → click-through hoàn toàn
+  - DXGI: cửa sổ thường, nền trong suốt bằng DWM glass, `WDA_EXCLUDEFROMCAPTURE`, chặn `WM_MOUSEACTIVATE`, `SetWindowRgn` chỉ giữ các ô chữ
+- [x] Manifest PerMonitorV2 DPI; overlay đặt bằng `SetWindowPos` pixel vật lý, ô chữ theo tỉ lệ vùng
+- [x] Bám cửa sổ nguồn (`SetWinEventHook`: LOCATIONCHANGE/DESTROY của tiến trình nguồn, FOREGROUND/MINIMIZE toàn hệ thống); chỉ hiện khi cửa sổ nguồn đang foreground và không thu nhỏ
+- [x] Phím tắt toàn cục (`RegisterHotKey` trên cửa sổ message-only): `Ctrl+Alt+T` bật/tắt dịch, `Ctrl+Alt+R` chọn vùng; đổi trong `settings.json` (UI ở Stage 9); `HotkeyGesture.TryParse` + 15 unit test
+- [x] Checkbox “Bật dịch” trên cửa sổ chính; overlay hiện chữ giả (`[Thử]`) theo vùng của hồ sơ
+- **Đã kiểm (harness với Notepad, click chuột thật):** trùng khung từng pixel, bám khi di chuyển/đổi cỡ, ẩn khi thu nhỏ/tắt dịch/đóng nguồn, không giành focus, phím tắt hoạt động khi nguồn đang foreground; WGC click-through cả trong ô chữ; DXGI: overlay không lọt vào ảnh DXGI, click ngoài ô chữ vào nguồn, region đúng bằng các ô chữ
+- [x] Thử tay trên video YouTube ở cả hai chế độ: ô chữ đúng vùng, ngoài ô trong suốt, tiếng Việt hiển thị đúng; DXGI xác nhận overlay không có trong ảnh chụp màn hình (phải chụp bằng điện thoại)
+- [x] Độ mờ nền mặc định 0.6 → 0.9: ở 0.6 phụ đề tiếng Anh gốc lộ qua nền, chồng lên chữ dịch
+- [ ] Tay cầm với Chiaki khi có (AC-06)
+- Đã đo: overlay WPF trên Win10 không thể vừa click-through vừa `WDA_EXCLUDEFROMCAPTURE` (`AllowsTransparency` → lỗi 8; thêm WS_EX_LAYERED vào cửa sổ thường → `SetLayeredWindowAttributes` lỗi 87, mất click-through)
 
 ## Stage 3 – Benchmark OCR (M) · Gate 1
 - [ ] Tạo project tools/AppTranslator.Benchmark và tests/AppTranslator.Ocr.Tests
@@ -116,6 +124,11 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 
 ---
 
+## Bảo trì (sau khi xong các stage)
+- [ ] Overlay chế độ DXGI click-through hoàn toàn: thử cửa sổ Win32 thuần tự vẽ (GDI hoặc Direct2D/DirectWrite) thay WPF. Thử trước ~1 giờ, nếu đạt thì viết lại ~1–1,5 ngày; ảnh hưởng phần co chữ/xuống dòng của Stage 6
+
+---
+
 ## Nhật ký
 
 | Ngày | Nội dung |
@@ -123,3 +136,4 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | 2026-11-22 | Đọc tài liệu, lập kế hoạch, chốt .NET 8 và làm cả hai engine chụp |
 | 2026-11-23 | Xong Stage 0, commit `ff25fd8` lên nhánh `stage_0` (origin: github.com/lekhatiep/AppTranslator) |
 | 2026-11-23 | Tạo `main` từ `stage_0`; Stage 1 code xong trên nhánh `stage_1`. Sửa deadlock WGC (FrameArrived chờ khóa khi WGC giữ khóa D3D) |
+| 2026-11-23 | Stage 1 commit `2b1586d`, merge vào `development`. Stage 2 xong, commit trên `stage_2` |
