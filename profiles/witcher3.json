@@ -1,0 +1,17 @@
+{
+  "id": "witcher3",
+  "gameName": "The Witcher 3: Wild Hunt",
+  "windowTitleHint": "Chiaki",
+  "regions": [
+    { "type": "subtitle", "x": 0.0, "y": 0.80, "w": 1.0, "h": 0.12, "textColor": "white", "maxLines": 3 },
+    { "type": "choices", "x": 0.55, "y": 0.40, "w": 0.40, "h": 0.30, "textColor": "yellow", "selectedMarker": "▶" }
+  ],
+  "style": {
+    "tone": "Trung cổ kỳ ảo, lời thoại tự nhiên",
+    "addressing": "Geralt xưng 'ta', gọi người lạ 'ngươi'",
+    "contextLines": 3
+  },
+  "keepNames": ["Geralt", "Yennefer", "Triss", "Kaer Morhen"],
+  "glossary": [ { "en": "the Wild Hunt", "vi": "Đoàn Săn Hoang Dã" } ],
+  "version": 1
+}

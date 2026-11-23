@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>$(WindowsTfm)</TargetFramework>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Serilog.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AppTranslator.Capture.Windows\AppTranslator.Capture.Windows.csproj" />
+    <ProjectReference Include="..\AppTranslator.Core\AppTranslator.Core.csproj" />
+    <ProjectReference Include="..\AppTranslator.Imaging\AppTranslator.Imaging.csproj" />
+    <ProjectReference Include="..\AppTranslator.Ocr\AppTranslator.Ocr.csproj" />
+    <ProjectReference Include="..\AppTranslator.Storage\AppTranslator.Storage.csproj" />
+    <ProjectReference Include="..\AppTranslator.Translation\AppTranslator.Translation.csproj" />
+  </ItemGroup>
+
+  <!-- Hồ sơ game đóng gói kèm app, chép vào %AppData% ở lần chạy đầu. -->
+  <ItemGroup>
+    <None Include="..\..\profiles\*.json" Link="profiles\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

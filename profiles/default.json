@@ -1,0 +1,12 @@
+{
+  "id": "default",
+  "gameName": "Mặc định",
+  "regions": [],
+  "style": {
+    "tone": "Trung tính, tự nhiên",
+    "contextLines": 3
+  },
+  "keepNames": [],
+  "glossary": [],
+  "version": 1
+}
