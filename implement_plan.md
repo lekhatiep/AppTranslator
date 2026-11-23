@@ -74,13 +74,30 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [ ] Tay cầm với Chiaki khi có (AC-06)
 - Đã đo: overlay WPF trên Win10 không thể vừa click-through vừa `WDA_EXCLUDEFROMCAPTURE` (`AllowsTransparency` → lỗi 8; thêm WS_EX_LAYERED vào cửa sổ thường → `SetLayeredWindowAttributes` lỗi 87, mất click-through)
 
-## Stage 3 – Benchmark OCR (M) · Gate 1
-- [ ] Tạo project tools/AppTranslator.Benchmark và tests/AppTranslator.Ocr.Tests
-- [ ] Tool console: đọc ảnh + `ground-truth.csv`, chạy engine × tiền xử lý, xuất CSV (độ chính xác theo từ, ms)
-- [ ] `WindowsOcrEngine` (kiểm tra gói ngôn ngữ English OCR, báo nếu thiếu)
-- [ ] `PaddleOcrEngine` (ONNX Runtime, DirectML)
-- [ ] (Tùy chọn) Tesseract làm mốc so sánh
-- [ ] Tiền xử lý: tách màu trắng/vàng (HSV), phóng to 2–3×, nhị phân hóa, lọc viền
+## Stage 3 – Benchmark OCR (M) · Gate 1 · 🟡 đang làm (nhánh `stage_3`)
+- [x] `samples/witcher3/ground-truth.csv` (16 dòng, 10 ảnh video, người dùng đã soát 2026-11-23) + README quy ước chép
+- [x] `TextAccuracy` (tỉ lệ từ đúng theo Levenshtein, chế độ chặt/lỏng) + 10 unit test
+- [x] Imaging: `FrameConverter` (Frame↔Mat, đọc/ghi/cắt/thu nhỏ), `TextPreprocessor` (None, Upscale2x, TextColorMask2x)
+- [x] Ocr: `WindowsOcrEngine`, `RapidOcrEngine` (PaddleOCR PP-OCRv5 Latin qua RapidOcrNet 4.2.0, ONNX Runtime CPU; model chép theo project tham chiếu)
+- [x] tools/AppTranslator.Benchmark: engine × tiền xử lý × dòng, xuất `results/<thời gian>/results.csv` + ảnh sau tiền xử lý, in bảng tổng hợp
+- [ ] tests/AppTranslator.Ocr.Tests: dời đến khi có ảnh mẫu đưa vào git được (ảnh hiện không lên git)
+- Kết quả lần 1 (2026-11-23, vùng hồ sơ hiện tại, “chặt” = so đúng dấu câu):
+
+  | Engine | Tiền xử lý | Phụ đề | Lựa chọn | ms/vùng |
+  |---|---|---|---|---|
+  | WindowsOcr | None | 80.1% | 90.9% | ~7 |
+  | WindowsOcr | Upscale2x | 78.3% | 80.9% | ~20 |
+  | WindowsOcr | TextColorMask2x | 71.5% | 77.3% | ~15 |
+  | PaddleOcrV5 | None | 47.0% | 97.5% | ~140 |
+  | PaddleOcrV5 | Upscale2x | 62.5% | 94.6% | ~2000 |
+  | PaddleOcrV5 | TextColorMask2x | 67.7% | 88.4% | ~300 |
+
+  - 2/10 phụ đề sai do **vùng**, không do OCR: 181007 mất dòng 2 (ảnh cao 1056 nên tỉ lệ lệch), 181336 phụ đề lúc chơi nằm cao hơn vùng (chỉ đọc được HUD)
+  - Lỗi OCR còn lại: dính chữ (“ouryoung”), dấu câu rác; Paddle + tách màu đọc nền thành ký tự rác
+  - RapidOcrNet mặc định thu cạnh dài về 1024px → phụ đề chỉ 15%; đã nâng lên 4096
+- [ ] Sửa vùng phụ đề (cao hơn cho phụ đề lúc chơi, đủ 2–3 dòng) rồi chạy lại
+- [ ] Thử thêm tiền xử lý / model nếu cần (xem báo cáo 2026-11-23)
+- [ ] (Tùy chọn) Tesseract làm mốc so sánh; DirectML cho Paddle nếu cần tốc độ
 - [ ] **Gate 1:** chốt engine + tiền xử lý, ghi kết quả vào mục “Quyết định đã chốt”
 
 ## Stage 4 – Nhận diện phụ đề (L) · FR-04
