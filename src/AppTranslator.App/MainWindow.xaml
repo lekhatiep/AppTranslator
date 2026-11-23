@@ -21,7 +21,10 @@
         <ComboBox ItemsSource="{Binding CaptureEngines}"
                   SelectedItem="{Binding SelectedCaptureEngine}" />
         <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0"
-                   Text="WindowsGraphicsCapture: chụp cả khi cửa sổ bị che, nhưng Windows 10 hiện viền vàng. DesktopDuplication: không viền, nhưng cửa sổ phải đang hiện trên màn hình." />
+                   Text="WindowsGraphicsCapture: chụp cả khi cửa sổ bị che, click chuột xuyên qua chữ dịch, nhưng Windows 10 hiện viền vàng. DesktopDuplication: không viền vàng, nhưng cửa sổ game phải nằm trên cùng và click trúng ô chữ dịch sẽ bị bỏ qua (click chỗ khác vẫn vào game)." />
+
+        <CheckBox Content="Bật dịch (hiện overlay)" IsChecked="{Binding IsTranslationEnabled}" Margin="0,16,0,0" />
+        <TextBlock FontSize="11" Foreground="Gray" Text="{Binding HotkeyHint}" Margin="0,4,0,0" />
 
         <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
             <Button Content="Chọn vùng chữ" Width="140" Margin="0,0,8,0" Command="{Binding SelectRegionsCommand}" />

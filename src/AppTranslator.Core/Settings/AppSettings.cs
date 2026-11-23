@@ -25,5 +25,6 @@ public sealed record OverlaySettings
 {
     public double FontSize { get; init; } = 28;
     public string BackgroundColor { get; init; } = "#000000";
-    public double BackgroundOpacity { get; init; } = 0.6;
+    // 0.9: thấp hơn thì phụ đề tiếng Anh gốc lộ qua nền và chồng lên chữ dịch (đã thử trên video Witcher 3).
+    public double BackgroundOpacity { get; init; } = 0.9;
 }

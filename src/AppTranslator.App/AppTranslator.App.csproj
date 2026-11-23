@@ -4,6 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>$(WindowsTfm)</TargetFramework>
     <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>

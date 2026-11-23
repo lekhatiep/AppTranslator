@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using AppTranslator.App.Overlay;
 using AppTranslator.Capture.Windows;
 using AppTranslator.Core.Abstractions;
 using AppTranslator.Core.Settings;
@@ -44,6 +45,8 @@ public partial class App : Application
                 services.AddSingleton(_ => settingsStore.Load());
                 services.AddSingleton<WindowsGraphicsCapture>();
                 services.AddSingleton<DesktopDuplicationCapture>();
+                services.AddSingleton<OverlayController>();
+                services.AddSingleton<HotkeyService>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainWindow>();
             })
@@ -52,7 +55,10 @@ public partial class App : Application
         _host.Start();
         Log.Information("AppTranslator khởi động, dữ liệu tại {Root}", paths.Root);
 
-        _host.Services.GetRequiredService<MainWindow>().Show();
+        // Overlay cũng là một Window và được tạo trước, nên WPF tự coi nó là MainWindow; phải chỉ rõ cửa sổ chính
+        // (ShutdownMode=OnMainWindowClose đặt trong App.xaml).
+        MainWindow = _host.Services.GetRequiredService<MainWindow>();
+        MainWindow.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)

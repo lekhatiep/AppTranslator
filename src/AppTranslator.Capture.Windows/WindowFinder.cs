@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using AppTranslator.Core.Abstractions;
 
 namespace AppTranslator.Capture.Windows;
 
@@ -47,6 +48,17 @@ public static class WindowFinder
     public static bool IsAlive(nint windowHandle)
     {
         return NativeMethods.IsWindow(windowHandle);
+    }
+
+    /// <summary>Khung cửa sổ trên màn hình, pixel vật lý; đúng phần mà cả hai engine chụp. Null nếu không lấy được.</summary>
+    public static PixelRect? GetBounds(nint windowHandle)
+    {
+        var bounds = NativeMethods.GetFrameBounds(windowHandle);
+        if (bounds is null)
+            return null;
+
+        var rect = bounds.Value;
+        return new PixelRect(rect.Left, rect.Top, rect.Right - rect.Left, rect.Bottom - rect.Top);
     }
 
     private static bool IsCapturable(nint handle, int ownProcessId)

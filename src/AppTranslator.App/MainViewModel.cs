@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
+using AppTranslator.App.Overlay;
 using AppTranslator.Capture.Windows;
 using AppTranslator.Core.Abstractions;
 using AppTranslator.Core.Profiles;
@@ -19,8 +20,14 @@ public partial class MainViewModel : ObservableObject
     private readonly AppPaths _paths;
     private readonly WindowsGraphicsCapture _graphicsCapture;
     private readonly DesktopDuplicationCapture _desktopDuplicationCapture;
+    private readonly OverlayController _overlay;
+    private readonly HotkeyService _hotkeys;
     private readonly ILogger<MainViewModel> _logger;
     private AppSettings _settings;
+
+    // Stage 2 chưa có OCR/dịch: overlay hiện chữ giả để kiểm tra vị trí, độ dài và cách xuống dòng.
+    private const string SampleSubtitle = "[Thử overlay] Thử khắp thành phố. Hắn là một trong bốn trùm cai quản thế giới ngầm của thành phố này.";
+    private const string SampleChoices = "▶ 1. [Thử] Ta mơ thấy Kaer Morhen...\n2. [Thử] Thật lòng không muốn nhắc đến.";
 
     public MainViewModel(
         IProfileStore profileStore,
@@ -29,6 +36,8 @@ public partial class MainViewModel : ObservableObject
         AppPaths paths,
         WindowsGraphicsCapture graphicsCapture,
         DesktopDuplicationCapture desktopDuplicationCapture,
+        OverlayController overlay,
+        HotkeyService hotkeys,
         ILogger<MainViewModel> logger)
     {
         _profileStore = profileStore;
@@ -37,12 +46,16 @@ public partial class MainViewModel : ObservableObject
         _paths = paths;
         _graphicsCapture = graphicsCapture;
         _desktopDuplicationCapture = desktopDuplicationCapture;
+        _overlay = overlay;
+        _hotkeys = hotkeys;
         _logger = logger;
 
         Profiles = new ObservableCollection<GameProfile>(profileStore.LoadAll());
         _selectedCaptureEngine = settings.CaptureEngine;
+        _overlay.SetCaptureEngine(settings.CaptureEngine);
         RefreshWindows();
         SelectedProfile = Profiles.FirstOrDefault(p => p.Id == settings.ActiveProfileId) ?? Profiles.FirstOrDefault();
+        RegisterHotkeys();
     }
 
     public ObservableCollection<GameProfile> Profiles { get; }
@@ -63,6 +76,11 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _status = string.Empty;
 
+    [ObservableProperty]
+    private bool _isTranslationEnabled;
+
+    public string HotkeyHint => $"Phím tắt: {_settings.Hotkeys.ToggleTranslation} bật/tắt dịch, {_settings.Hotkeys.SelectRegion} chọn vùng chữ.";
+
     private IScreenCapture CurrentCapture
     {
         get
@@ -80,6 +98,7 @@ public partial class MainViewModel : ObservableObject
             return;
 
         SaveSettings(_settings with { ActiveProfileId = value.Id });
+        ShowSampleOverlayTexts(value);
 
         var matchingWindow = WindowFinder.FindByTitleHint(Windows, value.WindowTitleHint);
         if (matchingWindow is not null)
@@ -90,6 +109,7 @@ public partial class MainViewModel : ObservableObject
     {
         // Bỏ viền vàng khỏi cửa sổ cũ; lần chụp sau tự mở phiên mới cho cửa sổ mới.
         _graphicsCapture.Stop();
+        _overlay.SetTarget(value?.Handle ?? 0);
 
         if (value is null || SelectedProfile is null)
             return;
@@ -105,7 +125,57 @@ public partial class MainViewModel : ObservableObject
     {
         // Phiên WGC còn chạy thì viền vàng vẫn hiện và lọt vào ảnh chụp của Desktop Duplication.
         _graphicsCapture.Stop();
+        _overlay.SetCaptureEngine(value);
         SaveSettings(_settings with { CaptureEngine = value });
+    }
+
+    partial void OnIsTranslationEnabledChanged(bool value)
+    {
+        _overlay.SetEnabled(value);
+        Status = value ? "Đã bật dịch (overlay hiện khi cửa sổ nguồn đang được dùng)." : "Đã tắt dịch.";
+    }
+
+    private void ShowSampleOverlayTexts(GameProfile profile)
+    {
+        var texts = new List<(Region Region, string Text)>();
+        foreach (var region in profile.Regions)
+        {
+            string text = region.Type == RegionType.Subtitle ? SampleSubtitle : SampleChoices;
+            texts.Add((region, text));
+        }
+
+        _overlay.ShowTexts(texts, _settings.Overlay);
+    }
+
+    private void RegisterHotkeys()
+    {
+        var failures = new List<string>();
+        RegisterHotkey(_settings.Hotkeys.ToggleTranslation, () => IsTranslationEnabled = !IsTranslationEnabled, failures);
+        RegisterHotkey(_settings.Hotkeys.SelectRegion, () => SelectRegionsCommand.Execute(null), failures);
+
+        if (failures.Count > 0)
+            Status = "Không đăng ký được phím tắt: " + string.Join(", ", failures) + ". Sửa trong settings.json rồi mở lại app.";
+    }
+
+    private void RegisterHotkey(string text, Action action, List<string> failures)
+    {
+        var gesture = HotkeyGesture.TryParse(text);
+        if (gesture is null)
+        {
+            _logger.LogWarning("Phím tắt {Hotkey} sai định dạng", text);
+            failures.Add($"{text} (sai định dạng)");
+            return;
+        }
+
+        int error = _hotkeys.Register(gesture, action);
+        if (error != 0)
+        {
+            _logger.LogWarning("Đăng ký phím tắt {Hotkey} thất bại, mã lỗi Win32 {Error}", text, error);
+            failures.Add($"{text} (đã bị app khác dùng)");
+            return;
+        }
+
+        _logger.LogInformation("Đã đăng ký phím tắt {Hotkey}", text);
     }
 
     [RelayCommand]
