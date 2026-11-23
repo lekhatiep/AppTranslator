@@ -10,4 +10,5 @@ public sealed class AppPaths(string root)
     public string SettingsFile => Path.Combine(Root, "settings.json");
     public string ProfilesDirectory => Path.Combine(Root, "profiles");
     public string LogsDirectory => Path.Combine(Root, "logs");
+    public string DebugDirectory => Path.Combine(Root, "debug");
 }

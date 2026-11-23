@@ -484,3 +484,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Ảnh mẫu nặng (1.5–3MB/ảnh), không đưa lên git; ground-truth.csv vẫn commit.
+samples/**/images/

@@ -41,18 +41,27 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] `profiles/default.json`, `profiles/witcher3.json` (nháp, theo ví dụ tài liệu)
 - **Đã kiểm:** build 0 warning; 4/4 test Storage đạt; app chạy, tạo `settings.json`, chép 2 hồ sơ, ghi log
 
-## Stage 1 – Chụp và chọn vùng (M) · FR-01, FR-02
-- [ ] Liệt kê cửa sổ (EnumWindows), chọn cửa sổ, nhớ theo `windowTitleHint` của hồ sơ
-- [ ] `WgcCapture` (Windows.Graphics.Capture) → `Mat`
-- [ ] `DxgiCapture` (Desktop Duplication, cắt theo vùng cửa sổ) → `Mat`
-- [ ] Chọn engine chụp trong `settings.json`
-- [ ] UI chọn vùng: kéo chuột trên ảnh chụp, lưu tọa độ 0–1 vào hồ sơ
-- [ ] Chế độ debug: lưu PNG vùng chụp
-- **Xong khi:** chụp đúng vùng phụ đề của Chiaki bằng cả hai engine
+## Stage 1 – Chụp và chọn vùng (M) · FR-01, FR-02 · 🟡 code xong 2026-11-23, chờ thử tay
+- [x] `WindowFinder`: liệt kê cửa sổ (bỏ cửa sổ ẩn/cloaked/tool window/của chính app), tìm theo `windowTitleHint`
+- [x] Nhớ cửa sổ theo hồ sơ: chọn cửa sổ mà gợi ý cũ không còn khớp thì ghi tiêu đề mới vào `windowTitleHint`
+- [x] `WindowsGraphicsCapture` → `Frame`: giữ một phiên/cửa sổ, luôn giữ khung mới nhất, chép về CPU khi gọi
+- [x] `DesktopDuplicationCapture` → `Frame`: nhân bản màn hình chứa cửa sổ, cắt theo DWM extended frame bounds; tạo lại khi AccessLost
+- [x] Chọn engine chụp trên cửa sổ chính, lưu vào `settings.json`
+- [x] `RegionSelectorWindow`: kéo chuột trên ảnh chụp, lưu tọa độ 0–1 vào hồ sơ (giữ textColor, selectedMarker…)
+- [x] Nút "Lưu PNG debug": ảnh đầy đủ + ảnh từng vùng vào `%AppData%\AppTranslator\debug`
+- [x] `Region.ToPixelRect` / `WithPixelRect` + 6 unit test
+- **Đã kiểm:** build 0 warning; 10/10 test; harness chụp cửa sổ VS Code: WGC lần đầu ~200ms, các lần sau ~3ms; DXGI ~38ms / ~2.5ms; cùng kích thước 1920x1040, WGC chụp đúng cả khi bị che
+- [x] Thử tay bằng video YouTube Witcher 3 (thay Chiaki): 21 lần chụp, chọn vùng phụ đề + lựa chọn hội thoại hoạt động, cắt vùng đúng
+- [x] Sửa: phiên WGC không dừng khi đổi engine/cửa sổ → viền vàng lọt vào ảnh DXGI. Giờ `WindowsGraphicsCapture.Stop()` khi đổi
+- [ ] 1 ảnh WGC đen hoàn toàn (18:04:35) chưa rõ nguyên nhân, chưa tái hiện được
+- [ ] Chụp cửa sổ Chiaki thật (khi có)
+- 10 ảnh từ video (sáng/tối/lựa chọn/2 dòng) chép vào `samples/witcher3/images/video-*.png` để benchmark sơ bộ Stage 3; thư mục `images/` không đưa lên git
+- Ghi chú: `ProfileVersion` không tăng khi đổi vùng/cửa sổ vì không ảnh hưởng bản dịch trong cache
 
 ## Stage 2 – Overlay và phím tắt (M) · FR-03, FR-06
 - [ ] Overlay WPF trong suốt: `WS_EX_TRANSPARENT | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW`, TOPMOST
-- [ ] `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` cho overlay
+- [ ] `SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE)` cho overlay (bắt buộc với DXGI, nếu không overlay lọt vào ảnh chụp)
+- [ ] Manifest PerMonitorV2 DPI để vị trí overlay khớp pixel vật lý
 - [ ] Bám cửa sổ nguồn (`SetWinEventHook` LOCATIONCHANGE), xử lý DPI
 - [ ] Phím tắt toàn cục (`RegisterHotKey`): bật/tắt dịch, mở chọn vùng; đổi được trong cài đặt
 - **Xong khi:** chữ giả đè lên Chiaki, tay cầm vẫn điều khiển game, overlay không giành focus
@@ -112,4 +121,5 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | Ngày | Nội dung |
 |---|---|
 | 2026-11-22 | Đọc tài liệu, lập kế hoạch, chốt .NET 8 và làm cả hai engine chụp |
-| 2026-11-23 | Xong Stage 0 (chưa commit) |
+| 2026-11-23 | Xong Stage 0, commit `ff25fd8` lên nhánh `stage_0` (origin: github.com/lekhatiep/AppTranslator) |
+| 2026-11-23 | Tạo `main` từ `stage_0`; Stage 1 code xong trên nhánh `stage_1`. Sửa deadlock WGC (FrameArrived chờ khóa khi WGC giữ khóa D3D) |

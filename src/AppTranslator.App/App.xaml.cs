@@ -1,5 +1,6 @@
 using System.IO;
 using System.Windows;
+using AppTranslator.Capture.Windows;
 using AppTranslator.Core.Abstractions;
 using AppTranslator.Core.Settings;
 using AppTranslator.Storage;
@@ -41,6 +42,8 @@ public partial class App : Application
                 services.AddSingleton<IProfileStore>(profileStore);
                 services.AddSingleton(settingsStore);
                 services.AddSingleton(_ => settingsStore.Load());
+                services.AddSingleton<WindowsGraphicsCapture>();
+                services.AddSingleton<DesktopDuplicationCapture>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainWindow>();
             })
