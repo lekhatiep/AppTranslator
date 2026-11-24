@@ -135,8 +135,10 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] `TranslationService`: bỏ câu rác (`OcrQuality`: <70% từ "giống từ" vì có số/ký tự lạ) → trùng câu ngay trước thì dùng lại → cache → gọi AI kèm ngữ cảnh; đổi hồ sơ thì xóa ngữ cảnh
 - [x] Test: 26 test mới (tổng 72 trên nhánh này)
 - Giới hạn: lọc rác không bắt được rác toàn chữ cái ("uldll", "duölegsla ee ge") vì không dùng từ điển
-- [ ] Nối vào app (chờ `stage_4` vào `development`): vòng đọc phụ đề → dịch → hiện câu dịch; ô nhập key; báo lỗi; nút xóa cache; chỉ dịch lại khi câu sửa khác đáng kể
-- [ ] Hiện trạng thái lỗi trên overlay (FR-13)
+- [x] Nối vào app (`SubtitleTranslator`): câu đọc được → dịch → hiện trên cửa sổ chính và overlay vùng phụ đề (thay chữ mẫu Stage 2); phụ đề tắt thì ẩn. Chỉ hiện kết quả của câu mới nhất. Câu sửa khác <3 từ so với câu đã dịch thì không dịch lại
+- [x] Cửa sổ chính: chọn bộ dịch (Mock/Gemini, lưu vào settings), ô nhập key (PasswordBox → DPAPI), nút xóa cache hồ sơ, ô bản dịch + thời gian dịch và tổng độ trễ
+- [x] Lỗi dịch hiện `⚠ <lý do>` trên overlay và cửa sổ chính (FR-13), vòng đọc vẫn chạy
+- [ ] Chạy thử trên cửa sổ thật với bộ dịch giả
 - [ ] Khi có key: chạy thử các câu OCR lỗi thật trong log, đo độ trễ và tỉ lệ dịch đúng ý; chốt model
 - **Xong khi:** dịch được câu mẫu, đo được độ trễ
 
