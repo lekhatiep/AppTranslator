@@ -110,11 +110,13 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] `OcrVote.SelectMedian` + 6 test; `WordDistance` dùng chung với `TextAccuracy`
 - [x] Benchmark “Ensemble” = OcrVote trên 5 cấu hình (Windows None/Sharpen/Upscale2x + Paddle None/Sharpen): **phụ đề 91.0%, lựa chọn 100%**, ~800 ms nếu chạy lần lượt. Lưu ý: tổ hợp chọn trên chính 14 ảnh này nên có thể lạc quan. **Chưa dùng trong app** (để bảo trì, xem dưới)
 - [x] Đo CPU (i7-12700F, 20 luồng): PaddleOCR mặc định chiếm ~94% cả máy mỗi lần đọc (6.3 s CPU). Giới hạn ONNX Runtime 4 luồng + tắt spin: 177 ms thay vì 338 ms, 0.47 s CPU, kết quả giống hệt → đã áp dụng. Ensemble trên 14 ảnh: 420 ms/câu, ~1.07 s CPU/câu (≈13% máy trong ~0.4 s) ≈ 1.8% CPU trung bình nếu 3 s có một câu mới
-- [ ] `ChangeDetector` (so mặt nạ chữ giữa các khung)
-- [ ] `StabilityGate` (chữ đứng yên N ms, khởi điểm 300 ms)
-- [ ] `OcrVote`: OCR 3 khung cách ~100 ms, chọn kết quả “ở giữa” (tổng khoảng cách chỉnh sửa nhỏ nhất)
-- [ ] `SubtitleReader`: vòng chụp ~10 fps → các bước trên → câu tiếng Anh; hiện trên cửa sổ chính + log độ trễ
-- [ ] Unit test cho logic Core (ảnh tĩnh, chuỗi khung giả)
+- [x] `TextMask` (thay cho `ChangeDetector`): ô 8×8 px có ≥2 điểm sáng (độ sáng ≥200) là ô chữ, `ChangeRatio` = ô khác / ô có chữ. Trên 14 ảnh mẫu: ~1 ms/khung; cùng câu nén JPEG 60 lệch ≤0.19, hai câu khác nhau ≥0.44 → ngưỡng 0.3
+- [x] `StabilityGate`: báo Changed / Stable (đứng yên 300 ms, một lần) / Cleared (vùng trống đứng yên sau khi có câu)
+- [x] Bỏ phiếu nhiều khung: OCR 3 khung cuối của lần đứng yên (cách 100 ms), `OcrVote.SelectMedian`
+- [x] `SubtitleReader` (App): chụp 10 khung/giây trên luồng UI, cắt + mặt nạ + làm nét chạy nền, Windows OCR + Sharpen (Gate 1 tạm); hiện câu và độ trễ trên cửa sổ chính, ghi log. Chạy khi bật dịch, khởi động lại khi đổi hồ sơ/cửa sổ/engine
+- [x] Unit test: `TextMask` 6, `StabilityGate` 5 (tổng 58)
+- [x] Phát lại 14 ảnh mẫu như video (mỗi ảnh 1.5 s, xen khoảng trống) qua `SubtitleReader` thật: đọc 14/14 câu, mỗi câu một lần, 14 lần tắt; trễ 340–510 ms (gồm 300 ms chờ), OCR 37–100 ms; CPU 0.6% máy (chưa tính chép khung từ GPU)
+- [ ] Chạy thử trên cửa sổ thật (video Witcher 3 trong Chrome hoặc Chiaki): câu đúng, không đọc lặp, đo CPU cả vòng chụp
 - Giới hạn: bộ mẫu chỉ có 1 khung/cảnh nên chưa đo được lợi ích của bỏ phiếu nhiều khung; kiểm trên video trực tiếp
 - **Xong khi:** ra đúng câu tiếng Anh từ ảnh mẫu và cửa sổ thật
 
@@ -166,3 +168,4 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | 2026-11-23 | Tạo `main` từ `stage_0`; Stage 1 code xong trên nhánh `stage_1`. Sửa deadlock WGC (FrameArrived chờ khóa khi WGC giữ khóa D3D) |
 | 2026-11-23 | Stage 1 commit `2b1586d`, merge vào `development`. Stage 2 xong, commit trên `stage_2` |
 | 2026-11-23 | Stage 2 merge vào `development`. Stage 3 xong (Gate 1 tạm) trên `stage_3`; đã xóa model Paddle thử nghiệm và kết quả benchmark cũ |
+| 2026-11-24 | Stage 4 phần 1 (`50e14a4`) và phần 2 (vòng đọc phụ đề) trên `stage_4`; Ensemble dời sang bảo trì. Chờ chạy thử trên cửa sổ thật |

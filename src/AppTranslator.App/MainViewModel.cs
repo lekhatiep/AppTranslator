@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.Windows;
 using AppTranslator.App.Overlay;
+using AppTranslator.App.Pipeline;
 using AppTranslator.Capture.Windows;
 using AppTranslator.Core.Abstractions;
 using AppTranslator.Core.Profiles;
@@ -22,8 +23,10 @@ public partial class MainViewModel : ObservableObject
     private readonly DesktopDuplicationCapture _desktopDuplicationCapture;
     private readonly OverlayController _overlay;
     private readonly HotkeyService _hotkeys;
+    private readonly SubtitleReader _subtitleReader;
     private readonly ILogger<MainViewModel> _logger;
     private AppSettings _settings;
+    private CancellationTokenSource? _readerCancellation;
 
     // Stage 2 chưa có OCR/dịch: overlay hiện chữ giả để kiểm tra vị trí, độ dài và cách xuống dòng.
     private const string SampleSubtitle = "[Thử overlay] Thử khắp thành phố. Hắn là một trong bốn trùm cai quản thế giới ngầm của thành phố này.";
@@ -38,6 +41,7 @@ public partial class MainViewModel : ObservableObject
         DesktopDuplicationCapture desktopDuplicationCapture,
         OverlayController overlay,
         HotkeyService hotkeys,
+        SubtitleReader subtitleReader,
         ILogger<MainViewModel> logger)
     {
         _profileStore = profileStore;
@@ -48,7 +52,10 @@ public partial class MainViewModel : ObservableObject
         _desktopDuplicationCapture = desktopDuplicationCapture;
         _overlay = overlay;
         _hotkeys = hotkeys;
+        _subtitleReader = subtitleReader;
         _logger = logger;
+        _subtitleReader.SentenceRead += OnSentenceRead;
+        _subtitleReader.SubtitleCleared += OnSubtitleCleared;
 
         Profiles = new ObservableCollection<GameProfile>(profileStore.LoadAll());
         _selectedCaptureEngine = settings.CaptureEngine;
@@ -79,6 +86,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _isTranslationEnabled;
 
+    [ObservableProperty]
+    private string _lastSubtitle = string.Empty;
+
+    [ObservableProperty]
+    private string _lastSubtitleTiming = string.Empty;
+
     public string HotkeyHint => $"Phím tắt: {_settings.Hotkeys.ToggleTranslation} bật/tắt dịch, {_settings.Hotkeys.SelectRegion} chọn vùng chữ.";
 
     private IScreenCapture CurrentCapture
@@ -99,6 +112,7 @@ public partial class MainViewModel : ObservableObject
 
         SaveSettings(_settings with { ActiveProfileId = value.Id });
         ShowSampleOverlayTexts(value);
+        RestartSubtitleReader();
 
         var matchingWindow = WindowFinder.FindByTitleHint(Windows, value.WindowTitleHint);
         if (matchingWindow is not null)
@@ -110,6 +124,7 @@ public partial class MainViewModel : ObservableObject
         // Bỏ viền vàng khỏi cửa sổ cũ; lần chụp sau tự mở phiên mới cho cửa sổ mới.
         _graphicsCapture.Stop();
         _overlay.SetTarget(value?.Handle ?? 0);
+        RestartSubtitleReader();
 
         if (value is null || SelectedProfile is null)
             return;
@@ -127,12 +142,63 @@ public partial class MainViewModel : ObservableObject
         _graphicsCapture.Stop();
         _overlay.SetCaptureEngine(value);
         SaveSettings(_settings with { CaptureEngine = value });
+        RestartSubtitleReader();
     }
 
     partial void OnIsTranslationEnabledChanged(bool value)
     {
         _overlay.SetEnabled(value);
         Status = value ? "Đã bật dịch (overlay hiện khi cửa sổ nguồn đang được dùng)." : "Đã tắt dịch.";
+        RestartSubtitleReader();
+    }
+
+    // Stage 4: chỉ đọc phụ đề tiếng Anh và hiện trên cửa sổ chính; dịch và đè lên overlay ở Stage 5–6.
+    private void RestartSubtitleReader()
+    {
+        _readerCancellation?.Cancel();
+        _readerCancellation?.Dispose();
+        _readerCancellation = null;
+
+        if (!IsTranslationEnabled || SelectedWindow is null || SelectedProfile is null)
+            return;
+
+        var region = SelectedProfile.Regions.FirstOrDefault(r => r.Type == RegionType.Subtitle);
+        if (region is null || region.W <= 0 || region.H <= 0)
+        {
+            Status = "Hồ sơ chưa có vùng phụ đề: bấm \"Chọn vùng chữ\".";
+            return;
+        }
+
+        _readerCancellation = new CancellationTokenSource();
+        _ = RunSubtitleReaderAsync(SelectedWindow, region, _readerCancellation.Token);
+    }
+
+    private async Task RunSubtitleReaderAsync(WindowInfo window, Region region, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _subtitleReader.RunAsync(token => CurrentCapture.CaptureAsync(window.Handle, token), region, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Tắt dịch hoặc đổi hồ sơ/cửa sổ/engine: vòng mới (nếu có) đã được khởi động.
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Vòng đọc phụ đề dừng vì lỗi");
+            Status = $"Đọc phụ đề dừng vì lỗi: {exception.Message}";
+        }
+    }
+
+    private void OnSentenceRead(SubtitleRead read)
+    {
+        LastSubtitle = read.Text;
+        LastSubtitleTiming = $"OCR {read.OcrDuration.TotalMilliseconds:F0} ms, trễ từ lúc câu hiện {read.Latency.TotalMilliseconds:F0} ms ({DateTime.Now:HH:mm:ss})";
+    }
+
+    private void OnSubtitleCleared()
+    {
+        LastSubtitleTiming = $"Phụ đề đã tắt ({DateTime.Now:HH:mm:ss})";
     }
 
     private void ShowSampleOverlayTexts(GameProfile profile)
