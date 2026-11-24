@@ -139,7 +139,11 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Cửa sổ chính: chọn bộ dịch (Mock/Gemini, lưu vào settings), ô nhập key (PasswordBox → DPAPI), nút xóa cache hồ sơ, ô bản dịch + thời gian dịch và tổng độ trễ
 - [x] Lỗi dịch hiện `⚠ <lý do>` trên overlay và cửa sổ chính (FR-13), vòng đọc vẫn chạy
 - [ ] Chạy thử trên cửa sổ thật với bộ dịch giả
-- [ ] Khi có key: chạy thử các câu OCR lỗi thật trong log, đo độ trễ và tỉ lệ dịch đúng ý; chốt model
+- [x] Có key free (24/11). Công cụ `tools/AppTranslator.TranslateCheck` (đọc key từ secrets.bin, không in ra): `--models` liệt kê model; dịch `samples/witcher3/translate-check.txt` (16 câu OCR thật kèm lỗi, đúng thứ tự hội thoại)
+  - **Chốt `gemini-3.5-flash-lite`**: 16/16 câu, trung vị 725–860 ms, lớn nhất 1.4–1.6 s (câu đầu). Cộng ~0.4 s đọc phụ đề → tổng ~1.1–1.3 s, đạt mục tiêu 1.5 s phần lớn thời gian
+  - `gemini-3.1-flash-lite` và `gemini-3.8-flash`: key free bị quá tải (timeout >8 s, 503) → không dùng
+  - Gemini tự hiểu đúng hầu hết lỗi OCR ("Guessshe", "tpawake", "havetÖtell", "(töthe", "ÄJgh", "yoüyere", "Donlttry"). Sai: "Jöhn df8iügge" mất tên John of Brugge; "Ghouls and Alghouls" mỗi lần dịch một kiểu → nên thêm vào glossary; Ciri nói với Vesemir xưng "ta" → hồ sơ cần quy tắc xưng hô theo nhân vật (khách cung cấp)
+  - **Giới hạn key free**: chạy liên tục ~15 câu/phút thì bị 429. Hội thoại dồn dập có thể chạm giới hạn → app báo "Hết lượt dịch" trên overlay; cache chỉ giúp câu lặp. Demo dài hoặc chơi thật nên dùng key trả phí hoặc dự phòng Google Translate
 - **Xong khi:** dịch được câu mẫu, đo được độ trễ
 
 ## Stage 6 – Ghép pipeline phụ đề (M) · FR-04, FR-06, FR-12 · Gate 2
