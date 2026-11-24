@@ -36,6 +36,10 @@ public sealed class SubtitleReader
     // biến thể ngang phiếu ("But you" / "Butyou") sẽ thay nhau hiện, và ở Stage 5 mỗi lần thay là một lần dịch lại.
     private const double MinCorrectionGain = 0.5;
 
+    // Và câu mới phải được ít nhất ngần này lần đọc ra giống hệt. Log 24/11: nền sáng làm nhiều lần đọc sai mỗi lần một kiểu
+    // ("df8rugge", "blithe's") và câu bị sửa qua lại mà không tốt hơn; bản sửa đúng thì luôn lặp lại y hệt. Sửa 21 → 10 lần.
+    private const int MinCorrectionCopies = 2;
+
     // Cứ ngần này khung thì ghi log thời gian xử lý trung bình mỗi khung (đo tải của vòng chụp).
     private const int TimingLogInterval = 100;
 
@@ -108,7 +112,7 @@ public sealed class SubtitleReader
                     AddVotes(sentenceVotes, candidates);
                     string best = OcrVote.SelectMedian(sentenceVotes);
                     double gain = OcrVote.AverageDistance(lastSentence, sentenceVotes) - OcrVote.AverageDistance(best, sentenceVotes);
-                    if (gain < MinCorrectionGain)
+                    if (gain < MinCorrectionGain || CountCopies(sentenceVotes, best) < MinCorrectionCopies)
                     {
                         _logger.LogDebug("Trùng câu đang hiện, giữ nguyên ({Count} phiếu)", sentenceVotes.Count);
                         continue;
@@ -141,6 +145,18 @@ public sealed class SubtitleReader
     {
         var crop = FrameConverter.Crop(frame, area);
         return (crop, TextMask.FromFrame(crop));
+    }
+
+    private static int CountCopies(List<string> votes, string text)
+    {
+        int count = 0;
+        foreach (string vote in votes)
+        {
+            if (vote == text)
+                count++;
+        }
+
+        return count;
     }
 
     private static void AddVotes(List<string> votes, List<string> candidates)
