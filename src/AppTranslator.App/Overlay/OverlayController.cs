@@ -1,5 +1,6 @@
 using System.Windows.Media;
 using AppTranslator.Capture.Windows;
+using AppTranslator.Core.Layout;
 using AppTranslator.Core.Profiles;
 using AppTranslator.Core.Settings;
 using Microsoft.Extensions.Logging;
@@ -56,11 +57,13 @@ public sealed class OverlayController : IDisposable
         _tracker.SetTarget(windowHandle);
     }
 
-    public void ShowTexts(IReadOnlyList<(Region Region, string Text)> texts, OverlaySettings settings)
+
+    /// <param name="texts">Anchor: khung chữ gốc theo tỉ lệ cửa sổ (null nếu không biết).</param>
+    public void ShowTexts(IReadOnlyList<(Region Region, string Text, LayoutRect? Anchor)> texts, OverlaySettings settings)
     {
         var overlayTexts = new List<OverlayText>();
-        foreach (var (region, text) in texts)
-            overlayTexts.Add(new OverlayText(region, text));
+        foreach (var (region, text, anchor) in texts)
+            overlayTexts.Add(new OverlayText(region, text, anchor));
 
         _texts = overlayTexts;
         _style = new OverlayStyle(settings.FontSize, CreateBackground(settings));

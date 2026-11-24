@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using AppTranslator.App.Overlay;
 using AppTranslator.App.Pipeline;
 using AppTranslator.Capture.Windows;
 using AppTranslator.Core.Abstractions;
+using AppTranslator.Core.Layout;
 using AppTranslator.Core.Profiles;
 using AppTranslator.Core.Settings;
 using AppTranslator.Storage;
@@ -26,6 +28,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SubtitleReader _subtitleReader;
     private readonly SubtitleTranslator _subtitleTranslator;
     private readonly SecretStore _secrets;
+    private readonly SqliteHistoryStore _history;
     private readonly ILogger<MainViewModel> _logger;
     private AppSettings _settings;
     private CancellationTokenSource? _readerCancellation;
@@ -42,6 +45,7 @@ public partial class MainViewModel : ObservableObject
         SubtitleReader subtitleReader,
         SubtitleTranslator subtitleTranslator,
         SecretStore secrets,
+        SqliteHistoryStore history,
         ILogger<MainViewModel> logger)
     {
         _profileStore = profileStore;
@@ -55,6 +59,7 @@ public partial class MainViewModel : ObservableObject
         _subtitleReader = subtitleReader;
         _subtitleTranslator = subtitleTranslator;
         _secrets = secrets;
+        _history = history;
         _logger = logger;
         _subtitleReader.SentenceRead += OnSentenceRead;
         _subtitleReader.SubtitleCleared += OnSubtitleCleared;
@@ -70,7 +75,11 @@ public partial class MainViewModel : ObservableObject
         RefreshWindows();
         SelectedProfile = Profiles.FirstOrDefault(p => p.Id == settings.ActiveProfileId) ?? Profiles.FirstOrDefault();
         RegisterHotkeys();
+        _ = DeleteOldHistoryAsync();
     }
+
+    // Mục 7 tài liệu: chỉ giữ lịch sử và số đo N ngày gần nhất.
+    private const int HistoryDays = 7;
 
     public ObservableCollection<GameProfile> Profiles { get; }
 
@@ -191,6 +200,24 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void OpenHistory()
+    {
+        new HistoryWindow(_history) { Owner = Application.Current.MainWindow }.Show();
+    }
+
+    private async Task DeleteOldHistoryAsync()
+    {
+        try
+        {
+            await _history.DeleteOlderThanAsync(DateTimeOffset.Now.AddDays(-HistoryDays));
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(exception, "Dọn lịch sử cũ thất bại");
+        }
+    }
+
+    [RelayCommand]
     private async Task ClearCacheAsync()
     {
         if (SelectedProfile is null)
@@ -279,7 +306,7 @@ public partial class MainViewModel : ObservableObject
                 // FR-13: báo ngắn trên overlay và cửa sổ chính, vòng đọc vẫn chạy tiếp.
                 LastTranslation = string.Empty;
                 LastTranslationTiming = $"Lỗi: {result.Error.Message}";
-                ShowOverlaySubtitle($"⚠ {result.Error.Message}");
+                ShowOverlaySubtitle($"⚠ {result.Error.Message}", read.TextBounds);
                 return;
             }
 
@@ -287,17 +314,33 @@ public partial class MainViewModel : ObservableObject
             {
                 LastTranslation = string.Empty;
                 LastTranslationTiming = "Câu đọc ra như chữ rác, không dịch.";
-                ShowOverlaySubtitle(null);
+                ShowOverlaySubtitle(null, null);
                 return;
             }
 
+            var renderStopwatch = Stopwatch.StartNew();
+            ShowOverlaySubtitle(result.Translation, read.TextBounds);
+            renderStopwatch.Stop();
+
             LastTranslation = result.Translation;
             string source = result.FromCache ? "cache" : SelectedTranslatorProvider;
-            var total = read.Latency + result.TranslateDuration;
+            var total = read.Latency + result.TranslateDuration + renderStopwatch.Elapsed;
             LastTranslationTiming = read.IsCorrection
                 ? $"Dịch lại câu đã sửa ({source}, {result.TranslateDuration.TotalMilliseconds:F0} ms)"
                 : $"Dịch ({source}) {result.TranslateDuration.TotalMilliseconds:F0} ms, tổng từ lúc câu hiện {total.TotalMilliseconds:F0} ms";
-            ShowOverlaySubtitle(result.Translation);
+
+            // Câu sửa lại: thời gian không đo từ lúc câu hiện nên không tính vào số đo độ trễ (AC-05).
+            PipelineTiming? timing = read.IsCorrection
+                ? null
+                : new PipelineTiming(
+                    (read.Latency - read.OcrDuration).TotalMilliseconds,
+                    read.OcrDuration.TotalMilliseconds,
+                    result.TranslateDuration.TotalMilliseconds,
+                    renderStopwatch.Elapsed.TotalMilliseconds,
+                    total.TotalMilliseconds,
+                    SubtitleReader.OcrEngineName);
+            await _history.AddAsync(new HistoryEntry(
+                DateTimeOffset.Now, profile.Id, nameof(RegionType.Subtitle), result.Source, result.Translation, result.FromCache, timing));
         }
         catch (Exception exception)
         {
@@ -317,11 +360,11 @@ public partial class MainViewModel : ObservableObject
     {
         _subtitleTranslator.Reset();
         LastTranslation = string.Empty;
-        ShowOverlaySubtitle(null);
+        ShowOverlaySubtitle(null, null);
     }
 
-    /// <summary>Hiện chữ ở vùng phụ đề của hồ sơ; null thì ẩn.</summary>
-    private void ShowOverlaySubtitle(string? text)
+    /// <summary>Hiện chữ ở vùng phụ đề của hồ sơ, đè lên khung chữ gốc (tỉ lệ cửa sổ) nếu biết; text null thì ẩn.</summary>
+    private void ShowOverlaySubtitle(string? text, LayoutRect? originalTextBounds)
     {
         var region = SelectedProfile?.Regions.FirstOrDefault(r => r.Type == RegionType.Subtitle);
         if (text is null || region is null)
@@ -330,7 +373,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        _overlay.ShowTexts([(region, text)], _settings.Overlay);
+        _overlay.ShowTexts([(region, text, originalTextBounds)], _settings.Overlay);
     }
 
     private void RegisterHotkeys()
