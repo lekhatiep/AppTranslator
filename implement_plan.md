@@ -152,11 +152,12 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [ ] `PipelineMetric` + `TranslationHistory`; màn xem lịch sử
 - [ ] **Gate 2:** demo phụ đề cho khách
 
-## Stage 7 – Lựa chọn hội thoại (M) · FR-05
-- [ ] `ChoiceParser`: tách từng lựa chọn, bỏ số thứ tự và ▶
-- [ ] Nhận dòng đang chọn (màu / ▶), hiển thị lại số thứ tự, ▶ và màu nổi bật
-- [ ] Không dịch lại khi chỉ di chuyển lựa chọn (cache theo từng lựa chọn)
-
+## Stage 7 – Lựa chọn hội thoại (M) · FR-05 · 🟡 đang làm (nhánh `stage_7`)
+- [x] `ChoiceParser`: tách theo hàng (dùng chung cách gộp hàng của `SentenceAssembler`), dòng bắt đầu bằng số = lựa chọn mới, bỏ ▶/rác OCR trước số, chấp nhận "1." "1)" "1,"; dòng không số = phần xuống dòng của lựa chọn trên (8 test). 8 ảnh mẫu (PaddleOCR): đúng số lựa chọn và số thứ tự ở cả 8
+- [x] `SelectionMarker`: OCR không đọc ra ▶ và màu chữ không dùng được (ảnh 180920: đang chọn vàng, còn lại trắng; ảnh 224431: cả hai vàng) → đếm điểm ảnh vàng trong dải bên trái mỗi dòng, dòng nhiều nhất (≥15 điểm, gấp đôi dòng nhì) là dòng đang chọn (4 test). 8 ảnh mẫu: đều nhận ▶ ở lựa chọn 1 (đúng). *Chưa có ảnh thật ▶ ở lựa chọn 2/3*
+- [ ] Vòng đọc lựa chọn trong app (chờ `stage_6` vào `development`): PaddleOCR khi vùng đổi và đứng yên; dò ▶ mỗi khung để bám khi người chơi di chuyển, không OCR lại
+- [ ] Dịch từng lựa chọn (cache theo từng câu), hiển thị lại số thứ tự, ▶ và màu nổi bật cho lựa chọn đang chọn
+- [ ] Không dịch lại khi chỉ di chuyển lựa chọn
 ## Stage 8 – Chọn vùng thủ công (M, best effort) · FR-07
 - [ ] Phím tắt → khoanh vùng → OCR + dịch một lần → popup; tắt bằng phím tắt hoặc khi vùng đổi
 

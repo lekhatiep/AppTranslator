@@ -29,8 +29,8 @@ public static class SentenceAssembler
         return NormalizeSpaces(string.Join(" ", keptTexts));
     }
 
-    /// <summary>Gộp các mảnh cùng hàng (trái sang phải), trả về các hàng theo thứ tự trên xuống.</summary>
-    private static List<OcrLine> GroupIntoRows(IReadOnlyList<OcrLine> lines)
+    /// <summary>Gộp các mảnh cùng hàng (trái sang phải), trả về các hàng theo thứ tự trên xuống. Dùng chung với ChoiceParser.</summary>
+    internal static List<OcrLine> GroupIntoRows(IReadOnlyList<OcrLine> lines)
     {
         var sortedByTop = new List<OcrLine>(lines);
         sortedByTop.Sort((first, second) => first.Bounds.Y.CompareTo(second.Bounds.Y));
