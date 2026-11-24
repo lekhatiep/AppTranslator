@@ -1,4 +1,5 @@
 using System.Text;
+using AppTranslator.Core.Text;
 
 namespace AppTranslator.Core.Evaluation;
 
@@ -23,7 +24,7 @@ public static class TextAccuracy
         if (expectedWords.Count == 0)
             return actualWords.Count == 0 ? 1 : 0;
 
-        int distance = EditDistance(expectedWords, actualWords);
+        int distance = WordDistance.Between(expectedWords, actualWords);
         return Math.Max(0, 1 - (double)distance / expectedWords.Count);
     }
 
@@ -51,31 +52,5 @@ public static class TextAccuracy
         }
 
         return builder.ToString();
-    }
-
-    /// <summary>Levenshtein theo từ, dùng hai hàng của bảng quy hoạch động.</summary>
-    private static int EditDistance(List<string> expected, List<string> actual)
-    {
-        var previousRow = new int[actual.Count + 1];
-        var currentRow = new int[actual.Count + 1];
-        for (int j = 0; j <= actual.Count; j++)
-            previousRow[j] = j;
-
-        for (int i = 1; i <= expected.Count; i++)
-        {
-            currentRow[0] = i;
-            for (int j = 1; j <= actual.Count; j++)
-            {
-                int substitutionCost = expected[i - 1] == actual[j - 1] ? 0 : 1;
-                int deletion = previousRow[j] + 1;
-                int insertion = currentRow[j - 1] + 1;
-                int substitution = previousRow[j - 1] + substitutionCost;
-                currentRow[j] = Math.Min(Math.Min(deletion, insertion), substitution);
-            }
-
-            (previousRow, currentRow) = (currentRow, previousRow);
-        }
-
-        return previousRow[actual.Count];
     }
 }

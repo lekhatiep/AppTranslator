@@ -12,6 +12,7 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | 2026-11-22 | Chưa có key Gemini | Stage 5 làm trước bằng `MockTranslator`, khi có key thì nối Gemini thật |
 | 2026-11-23 | Nhánh: mỗi stage tách `stage_<N>` từ `development` | |
 | 2026-11-23 | Gate 1 tạm: phụ đề Windows OCR + Sharpen (83.2%), lựa chọn PaddleOCR v5 kèm gói (98.2%) | Đo trên 14 ảnh video YouTube. Phụ đề chưa đạt 95% (AC-01): thử đọc nhiều khung lấy đa số + ghép 2 engine ở Stage 4. Chốt lại với bộ ảnh Chiaki |
+| 2026-11-24 | Giữ Gate 1 tạm, chưa đổi sang Ensemble (91%) | Khách ưu tiên chạy được trọn luồng trước, chấp nhận dịch sai một phần; Ensemble làm ở giai đoạn bảo trì |
 | 2026-11-23 | Overlay hai chế độ theo engine (hướng 1) | WGC: click-through hoàn toàn. DXGI: không lọt vào ảnh chụp, click trúng ô chữ bị overlay nhận (không tới game), click chỗ khác bình thường. Click-through cho DXGI để giai đoạn bảo trì |
 
 ## Đang chờ từ khách / người dùng
@@ -100,16 +101,28 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Lần 3: thử thêm tiền xử lý và model Paddle lớn
   - Tiền xử lý: **Sharpen** tốt nhất cho Windows (phụ đề 83.2%, 9/14 câu đúng trọn); Grayscale ≈ không đổi, Upscale1.5x kém hơn → bỏ, chỉ giữ Sharpen
   - Model Paddle (en_rec mobile, rec/det server): đều kém hơn bản kèm gói (3–38% phụ đề); rec server là model Trung+Anh nên bỏ dấu cách giữa từ, chậm 3–15 s/vùng → đã xóa model và code thử nghiệm (theo yêu cầu: dưới 95% thì xóa)
-- [ ] Vùng phụ đề vẫn chưa bắt phụ đề lúc chơi (mép trên 866, phụ đề lúc chơi ở 822–850)
+- [x] Vùng phụ đề nâng lên y 801–1053 (bắt cả phụ đề lúc chơi). Lần 4: Windows + Sharpen 81.9% (7/14); 181336 đã vào vùng nhưng OCR sai trên nền gỗ sáng và lẫn chữ HUD; Paddle giảm còn 69.6% vì thêm nền nhiễu
 - [ ] (Tùy chọn) Tesseract làm mốc so sánh; DirectML cho Paddle nếu cần tốc độ
 - [x] **Gate 1 (tạm, 2026-11-23):** phụ đề = Windows OCR + Sharpen; lựa chọn = PaddleOCR v5 (kèm gói), giữ nguyên ảnh. Chốt lại khi có ảnh Chiaki thật
 
-## Stage 4 – Nhận diện phụ đề (L) · FR-04
-- [ ] `ChangeDetector` (so mặt nạ chữ giữa các khung)
-- [ ] `StabilityGate` (chữ đứng yên N ms)
-- [ ] OCR 2–3 khung, lấy đa số
-- [ ] `SentenceAssembler` (ghép dòng, giữ dấu câu)
-- [ ] Unit test trên ảnh tĩnh
+## Stage 4 – Nhận diện phụ đề (L) · FR-04 · 🟡 đang làm (nhánh `stage_4`)
+- [x] `SentenceAssembler` (gộp mảnh cùng hàng, xếp trên→dưới, **bỏ hàng lệch tâm >15% = chữ HUD**) + 6 test; đưa vào benchmark: Paddle+Sharpen phụ đề 70.6% → 81.4%, Windows+Sharpen 82.6%
+- [x] `OcrVote.SelectMedian` + 6 test; `WordDistance` dùng chung với `TextAccuracy`
+- [x] Benchmark “Ensemble” = OcrVote trên 5 cấu hình (Windows None/Sharpen/Upscale2x + Paddle None/Sharpen): **phụ đề 91.0%, lựa chọn 100%**, ~800 ms nếu chạy lần lượt. Lưu ý: tổ hợp chọn trên chính 14 ảnh này nên có thể lạc quan. **Chưa dùng trong app** (để bảo trì, xem dưới)
+- [x] Đo CPU (i7-12700F, 20 luồng): PaddleOCR mặc định chiếm ~94% cả máy mỗi lần đọc (6.3 s CPU). Giới hạn ONNX Runtime 4 luồng + tắt spin: 177 ms thay vì 338 ms, 0.47 s CPU, kết quả giống hệt → đã áp dụng. Ensemble trên 14 ảnh: 420 ms/câu, ~1.07 s CPU/câu (≈13% máy trong ~0.4 s) ≈ 1.8% CPU trung bình nếu 3 s có một câu mới
+- [x] `TextMask` (thay cho `ChangeDetector`): ô 8×8 px có ≥2 điểm sáng (độ sáng ≥200) là ô chữ, `ChangeRatio` = ô khác / ô có chữ. Trên 14 ảnh mẫu: ~1 ms/khung; cùng câu nén JPEG 60 lệch ≤0.19, hai câu khác nhau ≥0.44 → ngưỡng 0.3
+- [x] `StabilityGate`: báo Changed / Stable (đứng yên 300 ms, một lần) / Cleared (vùng trống đứng yên sau khi có câu)
+- [x] Bỏ phiếu nhiều khung: OCR 3 khung cuối của lần đứng yên (cách 100 ms), `OcrVote.SelectMedian`
+- [x] `SubtitleReader` (App): chụp 10 khung/giây trên luồng UI, cắt + mặt nạ + làm nét chạy nền, Windows OCR + Sharpen (Gate 1 tạm); hiện câu và độ trễ trên cửa sổ chính, ghi log. Chạy khi bật dịch, khởi động lại khi đổi hồ sơ/cửa sổ/engine
+- [x] Unit test: `TextMask` 6, `StabilityGate` 5 (tổng 58)
+- [x] Phát lại 14 ảnh mẫu như video (mỗi ảnh 1.5 s, xen khoảng trống) qua `SubtitleReader` thật: đọc 14/14 câu, mỗi câu một lần, 14 lần tắt; trễ 340–510 ms (gồm 300 ms chờ), OCR 37–100 ms; CPU 0.6% máy (chưa tính chép khung từ GPU)
+- [x] Công cụ `tools/AppTranslator.VideoReplay`: phát lại video (mp4 trong `samples/<game>/videos/`, không commit) qua `SubtitleReader` theo thời gian thật, ghi log từng khung + ảnh cắt mỗi lần đọc
+- [x] Sửa lỗi đọc lại liên tục (video 24/11, lúc có bảng lựa chọn): nguyên nhân không phải vùng lựa chọn mà là nền sáng chuyển động (áo, tường đá, nhân vật thở) và con trỏ chuột trong vùng phụ đề làm mặt nạ trôi quá ngưỡng → OCR lại, mỗi lần ra biến thể khác. Thêm `SentenceComparer` (khác ≤15% ký tự chữ/số = cùng câu) + 9 test: câu trùng câu đang hiện thì bỏ qua; quên câu cũ khi phụ đề tắt. Video: 16 → 1 lần đọc (15 lần bỏ qua); 14 ảnh mẫu vẫn đọc đủ 14 câu
+  - Kho phiếu theo câu (ảnh 131744 + log app 24/11): lần đọc đầu hay sai hơn các lần đọc lại ("ÄJgh", "(töthe"), nên mọi lần đọc của cùng câu được gom (tối đa 30 kết quả) và chọn lại kết quả ở giữa; chỉ sửa câu đang hiện khi bản mới gần các phiếu hơn ≥0.5 từ/phiếu (chống nhảy "But you"/"Butyou"). Mô phỏng trên log: sửa đúng nhiều câu ("Ugh. I'm sorry…", "Shall we run the walls?", "But this has to end. Now."), số lần sửa 23 → 11 nhờ ngưỡng. Video: đọc sai lần đầu rồi sửa 1 lần đúng. Stage 5 cần lưu ý: mỗi lần sửa = dịch lại câu đó
+  - Thêm điều kiện: câu sửa phải có ≥2 lần đọc giống hệt (log 13:42: câu "John of Brugge…" trên nền sáng bị sửa qua lại giữa các bản sai khác kiểu). Mô phỏng log cả ngày: 21 → 10 lần sửa, cả 10 đều tốt hơn
+  - Đã thử mặt nạ chặt hơn (điểm sáng có viền tối): giảm OCR lại 21 → 6 lần nhưng không hết, chưa áp dụng để giữ các ngưỡng đã đo
+- [ ] Chạy thử trên cửa sổ thật (video Witcher 3 trong Chrome hoặc Chiaki): câu đúng, không đọc lặp, đo CPU cả vòng chụp
+- Giới hạn: bộ mẫu chỉ có 1 khung/cảnh nên chưa đo được lợi ích của bỏ phiếu nhiều khung; kiểm trên video trực tiếp
 - **Xong khi:** ra đúng câu tiếng Anh từ ảnh mẫu và cửa sổ thật
 
 ## Stage 5 – Dịch (M) · FR-09, FR-10, FR-13
@@ -147,6 +160,7 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 
 ## Bảo trì (sau khi xong các stage)
 - [ ] Overlay chế độ DXGI click-through hoàn toàn: thử cửa sổ Win32 thuần tự vẽ (GDI hoặc Direct2D/DirectWrite) thay WPF. Thử trước ~1 giờ, nếu đạt thì viết lại ~1–1,5 ngày; ảnh hưởng phần co chữ/xuống dòng của Stage 6
+- [ ] Đổi Gate 1 sang Ensemble (OcrVote trên Windows None/Sharpen/Upscale2x + Paddle None/Sharpen): phụ đề 82.6% → 91.0% trên 14 ảnh, đổi lại ~420 ms và ~1.8% CPU trung bình. Kiểm lại trên ảnh Chiaki trước khi đổi
 
 ---
 
@@ -159,3 +173,4 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | 2026-11-23 | Tạo `main` từ `stage_0`; Stage 1 code xong trên nhánh `stage_1`. Sửa deadlock WGC (FrameArrived chờ khóa khi WGC giữ khóa D3D) |
 | 2026-11-23 | Stage 1 commit `2b1586d`, merge vào `development`. Stage 2 xong, commit trên `stage_2` |
 | 2026-11-23 | Stage 2 merge vào `development`. Stage 3 xong (Gate 1 tạm) trên `stage_3`; đã xóa model Paddle thử nghiệm và kết quả benchmark cũ |
+| 2026-11-24 | Stage 4 phần 1 (`50e14a4`) và phần 2 (vòng đọc phụ đề) trên `stage_4`; Ensemble dời sang bảo trì. Chờ chạy thử trên cửa sổ thật |
