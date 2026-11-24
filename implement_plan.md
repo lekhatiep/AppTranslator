@@ -12,6 +12,7 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | 2026-11-22 | Chưa có key Gemini | Stage 5 làm trước bằng `MockTranslator`, khi có key thì nối Gemini thật |
 | 2026-11-23 | Nhánh: mỗi stage tách `stage_<N>` từ `development` | |
 | 2026-11-23 | Gate 1 tạm: phụ đề Windows OCR + Sharpen (83.2%), lựa chọn PaddleOCR v5 kèm gói (98.2%) | Đo trên 14 ảnh video YouTube. Phụ đề chưa đạt 95% (AC-01): thử đọc nhiều khung lấy đa số + ghép 2 engine ở Stage 4. Chốt lại với bộ ảnh Chiaki |
+| 2026-11-24 | Giữ Gate 1 tạm, chưa đổi sang Ensemble (91%) | Khách ưu tiên chạy được trọn luồng trước, chấp nhận dịch sai một phần; Ensemble làm ở giai đoạn bảo trì |
 | 2026-11-23 | Overlay hai chế độ theo engine (hướng 1) | WGC: click-through hoàn toàn. DXGI: không lọt vào ảnh chụp, click trúng ô chữ bị overlay nhận (không tới game), click chỗ khác bình thường. Click-through cho DXGI để giai đoạn bảo trì |
 
 ## Đang chờ từ khách / người dùng
@@ -100,16 +101,21 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Lần 3: thử thêm tiền xử lý và model Paddle lớn
   - Tiền xử lý: **Sharpen** tốt nhất cho Windows (phụ đề 83.2%, 9/14 câu đúng trọn); Grayscale ≈ không đổi, Upscale1.5x kém hơn → bỏ, chỉ giữ Sharpen
   - Model Paddle (en_rec mobile, rec/det server): đều kém hơn bản kèm gói (3–38% phụ đề); rec server là model Trung+Anh nên bỏ dấu cách giữa từ, chậm 3–15 s/vùng → đã xóa model và code thử nghiệm (theo yêu cầu: dưới 95% thì xóa)
-- [ ] Vùng phụ đề vẫn chưa bắt phụ đề lúc chơi (mép trên 866, phụ đề lúc chơi ở 822–850)
+- [x] Vùng phụ đề nâng lên y 801–1053 (bắt cả phụ đề lúc chơi). Lần 4: Windows + Sharpen 81.9% (7/14); 181336 đã vào vùng nhưng OCR sai trên nền gỗ sáng và lẫn chữ HUD; Paddle giảm còn 69.6% vì thêm nền nhiễu
 - [ ] (Tùy chọn) Tesseract làm mốc so sánh; DirectML cho Paddle nếu cần tốc độ
 - [x] **Gate 1 (tạm, 2026-11-23):** phụ đề = Windows OCR + Sharpen; lựa chọn = PaddleOCR v5 (kèm gói), giữ nguyên ảnh. Chốt lại khi có ảnh Chiaki thật
 
-## Stage 4 – Nhận diện phụ đề (L) · FR-04
+## Stage 4 – Nhận diện phụ đề (L) · FR-04 · 🟡 đang làm (nhánh `stage_4`)
+- [x] `SentenceAssembler` (gộp mảnh cùng hàng, xếp trên→dưới, **bỏ hàng lệch tâm >15% = chữ HUD**) + 6 test; đưa vào benchmark: Paddle+Sharpen phụ đề 70.6% → 81.4%, Windows+Sharpen 82.6%
+- [x] `OcrVote.SelectMedian` + 6 test; `WordDistance` dùng chung với `TextAccuracy`
+- [x] Benchmark “Ensemble” = OcrVote trên 5 cấu hình (Windows None/Sharpen/Upscale2x + Paddle None/Sharpen): **phụ đề 91.0%, lựa chọn 100%**, ~800 ms nếu chạy lần lượt. Lưu ý: tổ hợp chọn trên chính 14 ảnh này nên có thể lạc quan. **Chưa dùng trong app** (để bảo trì, xem dưới)
+- [x] Đo CPU (i7-12700F, 20 luồng): PaddleOCR mặc định chiếm ~94% cả máy mỗi lần đọc (6.3 s CPU). Giới hạn ONNX Runtime 4 luồng + tắt spin: 177 ms thay vì 338 ms, 0.47 s CPU, kết quả giống hệt → đã áp dụng. Ensemble trên 14 ảnh: 420 ms/câu, ~1.07 s CPU/câu (≈13% máy trong ~0.4 s) ≈ 1.8% CPU trung bình nếu 3 s có một câu mới
 - [ ] `ChangeDetector` (so mặt nạ chữ giữa các khung)
-- [ ] `StabilityGate` (chữ đứng yên N ms)
-- [ ] OCR 2–3 khung, lấy đa số
-- [ ] `SentenceAssembler` (ghép dòng, giữ dấu câu)
-- [ ] Unit test trên ảnh tĩnh
+- [ ] `StabilityGate` (chữ đứng yên N ms, khởi điểm 300 ms)
+- [ ] `OcrVote`: OCR 3 khung cách ~100 ms, chọn kết quả “ở giữa” (tổng khoảng cách chỉnh sửa nhỏ nhất)
+- [ ] `SubtitleReader`: vòng chụp ~10 fps → các bước trên → câu tiếng Anh; hiện trên cửa sổ chính + log độ trễ
+- [ ] Unit test cho logic Core (ảnh tĩnh, chuỗi khung giả)
+- Giới hạn: bộ mẫu chỉ có 1 khung/cảnh nên chưa đo được lợi ích của bỏ phiếu nhiều khung; kiểm trên video trực tiếp
 - **Xong khi:** ra đúng câu tiếng Anh từ ảnh mẫu và cửa sổ thật
 
 ## Stage 5 – Dịch (M) · FR-09, FR-10, FR-13
@@ -147,6 +153,7 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 
 ## Bảo trì (sau khi xong các stage)
 - [ ] Overlay chế độ DXGI click-through hoàn toàn: thử cửa sổ Win32 thuần tự vẽ (GDI hoặc Direct2D/DirectWrite) thay WPF. Thử trước ~1 giờ, nếu đạt thì viết lại ~1–1,5 ngày; ảnh hưởng phần co chữ/xuống dòng của Stage 6
+- [ ] Đổi Gate 1 sang Ensemble (OcrVote trên Windows None/Sharpen/Upscale2x + Paddle None/Sharpen): phụ đề 82.6% → 91.0% trên 14 ảnh, đổi lại ~420 ms và ~1.8% CPU trung bình. Kiểm lại trên ảnh Chiaki trước khi đổi
 
 ---
 

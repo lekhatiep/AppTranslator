@@ -2,6 +2,7 @@ using System.Diagnostics;
 using AppTranslator.Benchmark;
 using AppTranslator.Core.Abstractions;
 using AppTranslator.Core.Evaluation;
+using AppTranslator.Core.Pipeline;
 using AppTranslator.Core.Profiles;
 using AppTranslator.Imaging;
 using AppTranslator.Ocr;
@@ -49,6 +50,8 @@ foreach (var mode in Enum.GetValues<PreprocessMode>())
             results.Add(await RunAsync(engine, mode, row, crop));
     }
 }
+
+results.AddRange(BuildEnsembleResults(results));
 
 BenchmarkReport.WriteCsv(results, Path.Combine(outputDirectory, "results.csv"));
 BenchmarkReport.PrintSummary(results);
@@ -114,14 +117,65 @@ async Task<BenchmarkResult> RunAsync(IOcrEngine engine, PreprocessMode mode, Gro
     var ocr = await engine.RecognizeAsync(crop);
     stopwatch.Stop();
 
-    var lineTexts = new List<string>();
-    foreach (var line in ocr.Lines)
-        lineTexts.Add(line.Text);
-    string recognized = string.Join(" ", lineTexts);
+    string recognized = ToText(ocr, row.Region, crop.Width);
 
     return new BenchmarkResult(
         engine.Name, mode, row, recognized,
         TextAccuracy.WordAccuracy(row.Text, recognized, ignoreCaseAndPunctuation: false),
         TextAccuracy.WordAccuracy(row.Text, recognized, ignoreCaseAndPunctuation: true),
         stopwatch.Elapsed.TotalMilliseconds);
+}
+
+// "Ensemble": với mỗi dòng, lấy kết quả ở giữa (OcrVote) của các cấu hình dưới đây; ms = tổng (chạy lần lượt).
+// Tổ hợp chọn ở Stage 4 (bỏ Paddle + Upscale2x vì ~2 s/vùng).
+List<BenchmarkResult> BuildEnsembleResults(List<BenchmarkResult> singleResults)
+{
+    var members = new HashSet<(string Engine, PreprocessMode Mode)>
+    {
+        ("WindowsOcr", PreprocessMode.None),
+        ("WindowsOcr", PreprocessMode.Sharpen),
+        ("WindowsOcr", PreprocessMode.Upscale2x),
+        ("PaddleOcrV5", PreprocessMode.None),
+        ("PaddleOcrV5", PreprocessMode.Sharpen),
+    };
+
+    var ensembleResults = new List<BenchmarkResult>();
+    foreach (var row in rows)
+    {
+        var candidates = new List<string>();
+        double totalMilliseconds = 0;
+        foreach (var result in singleResults)
+        {
+            if (result.Row == row && members.Contains((result.Engine, result.Mode)))
+            {
+                candidates.Add(result.RecognizedText);
+                totalMilliseconds += result.Milliseconds;
+            }
+        }
+
+        if (candidates.Count == 0)
+            continue;
+
+        string chosen = OcrVote.SelectMedian(candidates);
+        ensembleResults.Add(new BenchmarkResult(
+            "Ensemble", PreprocessMode.None, row, chosen,
+            TextAccuracy.WordAccuracy(row.Text, chosen, ignoreCaseAndPunctuation: false),
+            TextAccuracy.WordAccuracy(row.Text, chosen, ignoreCaseAndPunctuation: true),
+            totalMilliseconds));
+    }
+
+    return ensembleResults;
+}
+
+// Phụ đề đi qua SentenceAssembler giống app (ghép dòng, bỏ chữ HUD); lựa chọn hội thoại tách ở Stage 7 nên tạm nối thẳng.
+string ToText(OcrResult ocr, RegionType region, int cropWidth)
+{
+    if (region == RegionType.Subtitle)
+        return SentenceAssembler.Assemble(ocr.Lines, cropWidth);
+
+    var lineTexts = new List<string>();
+    foreach (var line in ocr.Lines)
+        lineTexts.Add(line.Text);
+
+    return string.Join(" ", lineTexts);
 }
