@@ -51,6 +51,7 @@ public sealed class SubtitleReader
         var recentCrops = new List<Frame>();
         var tickStopwatch = new Stopwatch();
         int tickCount = 0;
+        string lastSentence = string.Empty;
         using var timer = new PeriodicTimer(FrameInterval);
 
         _logger.LogInformation("Bắt đầu đọc phụ đề, vùng x={X} y={Y} w={W} h={H}", region.X, region.Y, region.W, region.H);
@@ -68,6 +69,15 @@ public sealed class SubtitleReader
             var (crop, mask) = await Task.Run(() => CropAndMask(frame, area), cancellationToken);
             var change = gate.Update(mask, frame.CapturedAt);
             tickStopwatch.Stop();
+            _logger.LogTrace("Khung {Time:HH:mm:ss.fff}: lệch {Ratio:F2}, ô chữ {Cells}, {Change}",
+                frame.CapturedAt, gate.LastChangeRatio, mask.TextCellCount, change);
+            tickCount++;
+            if (tickCount % TimingLogInterval == 0)
+            {
+                _logger.LogDebug("Vòng chụp: trung bình {Milliseconds:F1} ms/khung (chụp + cắt + mặt nạ, không tính OCR)",
+                    tickStopwatch.Elapsed.TotalMilliseconds / TimingLogInterval);
+                tickStopwatch.Reset();
+            }
 
             if (change == SubtitleChange.Changed)
                 recentCrops.Clear();
@@ -76,17 +86,28 @@ public sealed class SubtitleReader
                 recentCrops.Add(crop);
 
             if (change == SubtitleChange.Stable)
-                await ReadSentenceAsync(recentCrops, gate.StillSince, cancellationToken);
-            else if (change == SubtitleChange.Cleared)
-                SubtitleCleared?.Invoke();
-
-            tickCount++;
-            if (tickCount % TimingLogInterval == 0)
             {
-                _logger.LogDebug("Vòng chụp: trung bình {Milliseconds:F1} ms/khung (chụp + cắt + mặt nạ, không tính OCR)",
-                    tickStopwatch.Elapsed.TotalMilliseconds / TimingLogInterval);
-                tickStopwatch.Reset();
+                var read = await ReadSentenceAsync(recentCrops, gate.StillSince, cancellationToken);
+
+                // Nền sau phụ đề chuyển động (nhân vật cử động, con trỏ chuột) làm vùng phụ đề trông như đổi dù câu vẫn vậy.
+                if (read is not null && SentenceComparer.AreSameSentence(read.Text, lastSentence))
+                {
+                    _logger.LogDebug("Bỏ qua: trùng câu đang hiện \"{Text}\"", lastSentence);
+                }
+                else if (read is not null)
+                {
+                    lastSentence = read.Text;
+                    _logger.LogInformation("Đọc phụ đề: \"{Text}\" | OCR {OcrMs:F0} ms, trễ {LatencyMs:F0} ms",
+                        read.Text, read.OcrDuration.TotalMilliseconds, read.Latency.TotalMilliseconds);
+                    SentenceRead?.Invoke(read);
+                }
             }
+            else if (change == SubtitleChange.Cleared)
+            {
+                lastSentence = string.Empty;
+                SubtitleCleared?.Invoke();
+            }
+
         }
     }
 
@@ -96,7 +117,8 @@ public sealed class SubtitleReader
         return (crop, TextMask.FromFrame(crop));
     }
 
-    private async Task ReadSentenceAsync(List<Frame> recentCrops, DateTimeOffset firstSeenAt, CancellationToken cancellationToken)
+    /// <summary>Trả về null nếu OCR không ra chữ.</summary>
+    private async Task<SubtitleRead?> ReadSentenceAsync(List<Frame> recentCrops, DateTimeOffset firstSeenAt, CancellationToken cancellationToken)
     {
         // Lấy các khung cuối: khung đầu của lần đứng yên có thể còn đang chuyển cảnh/hiện dần.
         int start = Math.Max(0, recentCrops.Count - VoteFrameCount);
@@ -112,6 +134,9 @@ public sealed class SubtitleReader
 
         string text = OcrVote.SelectMedian(candidates);
         stopwatch.Stop();
+        foreach (string candidate in candidates)
+            _logger.LogDebug("  ứng viên OCR: \"{Candidate}\"", candidate);
+
         cancellationToken.ThrowIfCancellationRequested();
 
         var latency = DateTimeOffset.Now - firstSeenAt;
@@ -119,11 +144,9 @@ public sealed class SubtitleReader
         {
             // Nền sáng đứng yên nhưng không có chữ đọc được.
             _logger.LogDebug("Vùng phụ đề đứng yên nhưng OCR không ra chữ ({Count} khung)", candidates.Count);
-            return;
+            return null;
         }
 
-        _logger.LogInformation("Đọc phụ đề: \"{Text}\" | OCR {Count} khung {OcrMs:F0} ms, trễ {LatencyMs:F0} ms",
-            text, candidates.Count, stopwatch.Elapsed.TotalMilliseconds, latency.TotalMilliseconds);
-        SentenceRead?.Invoke(new SubtitleRead(text, stopwatch.Elapsed, latency));
+        return new SubtitleRead(text, stopwatch.Elapsed, latency);
     }
 }

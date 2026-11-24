@@ -39,9 +39,13 @@ public sealed class StabilityGate
     /// <summary>Lúc chữ hiện tại bắt đầu đứng yên (≈ lúc câu xuất hiện), dùng để đo độ trễ.</summary>
     public DateTimeOffset StillSince => _stillSince;
 
+    /// <summary>Độ lệch của khung vừa đưa vào so với khung bắt đầu đứng yên (để debug ngưỡng).</summary>
+    public double LastChangeRatio { get; private set; }
+
     public SubtitleChange Update(TextMask mask, DateTimeOffset capturedAt)
     {
-        if (_reference is null || mask.ChangeRatio(_reference) > ChangeThreshold)
+        LastChangeRatio = _reference is null ? 1.0 : mask.ChangeRatio(_reference);
+        if (_reference is null || LastChangeRatio > ChangeThreshold)
         {
             _reference = mask;
             _stillSince = capturedAt;

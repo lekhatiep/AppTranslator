@@ -425,7 +425,7 @@ test-results/
 # Mac bundle stuff
 *.dmg
 *.app
-# Git trên Windows không phân biệt hoa thường nên *.app khớp cả thư mục project WPF.
+# Git trÃªn Windows khÃ´ng phÃ¢n biá»‡t hoa thÆ°á»ng nÃªn *.app khá»›p cáº£ thÆ° má»¥c project WPF.
 !AppTranslator.App/
 
 # content below from: https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
@@ -485,8 +485,9 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
-# Ảnh mẫu nặng (1.5–3MB/ảnh), không đưa lên git; ground-truth.csv vẫn commit.
+# áº¢nh máº«u náº·ng (1.5â€“3MB/áº£nh), khÃ´ng Ä‘Æ°a lÃªn git; ground-truth.csv váº«n commit.
 samples/**/images/
 
-# Kết quả benchmark (CSV, ảnh sau tiền xử lý), sinh lại được.
+# Káº¿t quáº£ benchmark (CSV, áº£nh sau tiá»n xá»­ lÃ½), sinh láº¡i Ä‘Æ°á»£c.
 samples/**/results/
+samples/**/videos/

@@ -116,6 +116,9 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] `SubtitleReader` (App): chụp 10 khung/giây trên luồng UI, cắt + mặt nạ + làm nét chạy nền, Windows OCR + Sharpen (Gate 1 tạm); hiện câu và độ trễ trên cửa sổ chính, ghi log. Chạy khi bật dịch, khởi động lại khi đổi hồ sơ/cửa sổ/engine
 - [x] Unit test: `TextMask` 6, `StabilityGate` 5 (tổng 58)
 - [x] Phát lại 14 ảnh mẫu như video (mỗi ảnh 1.5 s, xen khoảng trống) qua `SubtitleReader` thật: đọc 14/14 câu, mỗi câu một lần, 14 lần tắt; trễ 340–510 ms (gồm 300 ms chờ), OCR 37–100 ms; CPU 0.6% máy (chưa tính chép khung từ GPU)
+- [x] Công cụ `tools/AppTranslator.VideoReplay`: phát lại video (mp4 trong `samples/<game>/videos/`, không commit) qua `SubtitleReader` theo thời gian thật, ghi log từng khung + ảnh cắt mỗi lần đọc
+- [x] Sửa lỗi đọc lại liên tục (video 24/11, lúc có bảng lựa chọn): nguyên nhân không phải vùng lựa chọn mà là nền sáng chuyển động (áo, tường đá, nhân vật thở) và con trỏ chuột trong vùng phụ đề làm mặt nạ trôi quá ngưỡng → OCR lại, mỗi lần ra biến thể khác. Thêm `SentenceComparer` (khác ≤15% ký tự chữ/số = cùng câu) + 9 test: câu trùng câu đang hiện thì bỏ qua; quên câu cũ khi phụ đề tắt. Video: 16 → 1 lần đọc (15 lần bỏ qua); 14 ảnh mẫu vẫn đọc đủ 14 câu
+  - Đã thử mặt nạ chặt hơn (điểm sáng có viền tối): giảm OCR lại 21 → 6 lần nhưng không hết, chưa áp dụng để giữ các ngưỡng đã đo
 - [ ] Chạy thử trên cửa sổ thật (video Witcher 3 trong Chrome hoặc Chiaki): câu đúng, không đọc lặp, đo CPU cả vòng chụp
 - Giới hạn: bộ mẫu chỉ có 1 khung/cảnh nên chưa đo được lợi ích của bỏ phiếu nhiều khung; kiểm trên video trực tiếp
 - **Xong khi:** ra đúng câu tiếng Anh từ ảnh mẫu và cửa sổ thật
