@@ -5,6 +5,7 @@ using AppTranslator.App.Overlay;
 using AppTranslator.App.Pipeline;
 using AppTranslator.Capture.Windows;
 using AppTranslator.Core.Abstractions;
+using AppTranslator.Core.Layout;
 using AppTranslator.Core.Profiles;
 using AppTranslator.Core.Settings;
 using AppTranslator.Storage;
@@ -279,7 +280,7 @@ public partial class MainViewModel : ObservableObject
                 // FR-13: báo ngắn trên overlay và cửa sổ chính, vòng đọc vẫn chạy tiếp.
                 LastTranslation = string.Empty;
                 LastTranslationTiming = $"Lỗi: {result.Error.Message}";
-                ShowOverlaySubtitle($"⚠ {result.Error.Message}");
+                ShowOverlaySubtitle($"⚠ {result.Error.Message}", read.TextBounds);
                 return;
             }
 
@@ -287,7 +288,7 @@ public partial class MainViewModel : ObservableObject
             {
                 LastTranslation = string.Empty;
                 LastTranslationTiming = "Câu đọc ra như chữ rác, không dịch.";
-                ShowOverlaySubtitle(null);
+                ShowOverlaySubtitle(null, null);
                 return;
             }
 
@@ -297,7 +298,7 @@ public partial class MainViewModel : ObservableObject
             LastTranslationTiming = read.IsCorrection
                 ? $"Dịch lại câu đã sửa ({source}, {result.TranslateDuration.TotalMilliseconds:F0} ms)"
                 : $"Dịch ({source}) {result.TranslateDuration.TotalMilliseconds:F0} ms, tổng từ lúc câu hiện {total.TotalMilliseconds:F0} ms";
-            ShowOverlaySubtitle(result.Translation);
+            ShowOverlaySubtitle(result.Translation, read.TextBounds);
         }
         catch (Exception exception)
         {
@@ -317,11 +318,11 @@ public partial class MainViewModel : ObservableObject
     {
         _subtitleTranslator.Reset();
         LastTranslation = string.Empty;
-        ShowOverlaySubtitle(null);
+        ShowOverlaySubtitle(null, null);
     }
 
-    /// <summary>Hiện chữ ở vùng phụ đề của hồ sơ; null thì ẩn.</summary>
-    private void ShowOverlaySubtitle(string? text)
+    /// <summary>Hiện chữ ở vùng phụ đề của hồ sơ, đè lên khung chữ gốc (tỉ lệ cửa sổ) nếu biết; text null thì ẩn.</summary>
+    private void ShowOverlaySubtitle(string? text, LayoutRect? originalTextBounds)
     {
         var region = SelectedProfile?.Regions.FirstOrDefault(r => r.Type == RegionType.Subtitle);
         if (text is null || region is null)
@@ -330,7 +331,7 @@ public partial class MainViewModel : ObservableObject
             return;
         }
 
-        _overlay.ShowTexts([(region, text)], _settings.Overlay);
+        _overlay.ShowTexts([(region, text, originalTextBounds)], _settings.Overlay);
     }
 
     private void RegisterHotkeys()

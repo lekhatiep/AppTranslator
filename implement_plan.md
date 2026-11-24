@@ -149,7 +149,7 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 ## Stage 6 – Ghép pipeline phụ đề (M) · FR-04, FR-06, FR-12 · Gate 2 · 🟡 đang làm (nhánh `stage_6`)
 - [ ] `TranslationPipeline` dùng `Channel<T>` *(xem lại: Stage 5 đã nối đọc → dịch trên luồng UI, có bỏ kết quả cũ; chỉ làm nếu đo thấy cần)*
 - [x] Bố cục tiếng Việt (`SubtitleLayout`, Core, 9 test): ô dịch phủ khung chữ gốc (OCR trả khung các hàng phụ đề, hợp qua các khung bỏ phiếu), căn giữa, giữ cạnh dưới; xuống dòng theo bề rộng chữ gốc (tối thiểu nửa vùng), mở rộng lên trên tới mép trên vùng; không đủ chỗ thì co chữ tới 60%; vẫn tràn thì vượt lên trên vùng. Không biết khung chữ gốc (vd thông báo lỗi) thì neo đáy giữa vùng. Dựng thử trên ảnh mẫu: câu 3 dòng phủ kín chữ Anh, cỡ chữ 28 → 27
-- [ ] Truyền khung chữ gốc từ câu đọc được sang overlay (chờ `stage_5` vào `development`)
+- [x] Truyền khung chữ gốc từ câu đọc được sang overlay (bản dịch và thông báo lỗi đè đúng chỗ chữ gốc)
 - [ ] `PipelineMetric` + `TranslationHistory`; màn xem lịch sử
 - [ ] **Gate 2:** demo phụ đề cho khách
 

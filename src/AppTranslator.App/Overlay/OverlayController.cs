@@ -57,14 +57,6 @@ public sealed class OverlayController : IDisposable
         _tracker.SetTarget(windowHandle);
     }
 
-    public void ShowTexts(IReadOnlyList<(Region Region, string Text)> texts, OverlaySettings settings)
-    {
-        var withoutAnchors = new List<(Region Region, string Text, LayoutRect? Anchor)>();
-        foreach (var (region, text) in texts)
-            withoutAnchors.Add((region, text, null));
-
-        ShowTexts(withoutAnchors, settings);
-    }
 
     /// <param name="texts">Anchor: khung chữ gốc theo tỉ lệ cửa sổ (null nếu không biết).</param>
     public void ShowTexts(IReadOnlyList<(Region Region, string Text, LayoutRect? Anchor)> texts, OverlaySettings settings)
