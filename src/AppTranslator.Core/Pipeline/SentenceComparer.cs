@@ -1,3 +1,5 @@
+using AppTranslator.Core.Text;
+
 namespace AppTranslator.Core.Pipeline;
 
 /// <summary>
@@ -11,26 +13,13 @@ public static class SentenceComparer
 
     public static bool AreSameSentence(string first, string second)
     {
-        string a = Normalize(first);
-        string b = Normalize(second);
+        string a = TextNormalizer.ForComparison(first);
+        string b = TextNormalizer.ForComparison(second);
         if (a.Length == 0 || b.Length == 0)
             return a.Length == b.Length;
 
         int distance = CharacterDistance(a, b);
         return distance <= MaxDifferentCharacterRatio * Math.Max(a.Length, b.Length);
-    }
-
-    // Chỉ giữ chữ và số, viết thường: OCR hay sai dấu cách, dấu câu và hoa/thường.
-    private static string Normalize(string text)
-    {
-        var builder = new System.Text.StringBuilder(text.Length);
-        foreach (char character in text)
-        {
-            if (char.IsLetterOrDigit(character))
-                builder.Append(char.ToLowerInvariant(character));
-        }
-
-        return builder.ToString();
     }
 
     private static int CharacterDistance(string first, string second)

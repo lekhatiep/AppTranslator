@@ -11,4 +11,7 @@ public sealed class AppPaths(string root)
     public string ProfilesDirectory => Path.Combine(Root, "profiles");
     public string LogsDirectory => Path.Combine(Root, "logs");
     public string DebugDirectory => Path.Combine(Root, "debug");
+    public string SecretsFile => Path.Combine(Root, "secrets.bin");
+    public string DataDirectory => Path.Combine(Root, "data");
+    public string DatabaseFile => Path.Combine(DataDirectory, "translator.db");
 }

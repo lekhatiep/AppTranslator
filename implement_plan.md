@@ -125,14 +125,25 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - Giới hạn: bộ mẫu chỉ có 1 khung/cảnh nên chưa đo được lợi ích của bỏ phiếu nhiều khung; kiểm trên video trực tiếp
 - **Xong khi:** ra đúng câu tiếng Anh từ ảnh mẫu và cửa sổ thật
 
-## Stage 5 – Dịch (M) · FR-09, FR-10, FR-13
-- [ ] `MockTranslator` (dùng khi chưa có key)
-- [ ] `PromptBuilder`: văn phong, xưng hô, `keepNames`, glossary, N câu trước
-- [ ] `GeminiTranslator` (REST, HttpClient) *(chờ key)*
-- [ ] Lưu key bằng DPAPI (`secrets.bin`), không ghi ra log
-- [ ] SQLite (Microsoft.Data.Sqlite + Dapper): `TranslationCache`, khóa (ProfileId, SourceHash, ProfileVersion); xóa cache theo hồ sơ
-- [ ] Xử lý lỗi 401 / 429 / timeout / mất mạng → trạng thái trên overlay
-- [ ] Bỏ qua câu trùng câu trước và câu có độ tin cậy OCR thấp
+## Stage 5 – Dịch (M) · FR-09, FR-10, FR-13 · 🟡 đang làm (nhánh `stage_5`)
+- [x] `MockTranslator` (dùng khi chưa có key; không ghi vào cache)
+- [x] `PromptBuilder`: văn phong, xưng hô, `keepNames`, glossary, N câu trước (EN + VI); dặn AI câu nguồn là OCR có thể sai nhẹ, tự đoán ý đúng
+- [x] `GeminiTranslator` (REST generateContent, key qua header `x-goog-api-key`, timeout 8 s); test bằng phản hồi HTTP giả. Model để trong settings (`geminiModel`, tạm `gemini-3.5-flash-lite`) *(chạy thật khi có key)*
+- [x] Lưu key bằng DPAPI (`SecretStore`, `secrets.bin`, theo tài khoản Windows), không ghi ra log
+- [x] SQLite (`SqliteTranslationCache`, `data\translator.db`): khóa (ProfileId, SHA-256 câu đã chuẩn hóa, ProfileVersion) nên "Butyou were" và "But you were" dùng chung bản dịch; đếm HitCount; xóa cache theo hồ sơ
+- [x] Lỗi → `TranslationException` có loại: key sai (400 API_KEY_INVALID/401/403), hết lượt (429), quá chậm, mất mạng, Gemini lỗi (5xx), khác; câu báo tiếng Việt ngắn
+- [x] `TranslationService`: bỏ câu rác (`OcrQuality`: <70% từ "giống từ" vì có số/ký tự lạ) → trùng câu ngay trước thì dùng lại → cache → gọi AI kèm ngữ cảnh; đổi hồ sơ thì xóa ngữ cảnh
+- [x] Test: 26 test mới (tổng 72 trên nhánh này)
+- Giới hạn: lọc rác không bắt được rác toàn chữ cái ("uldll", "duölegsla ee ge") vì không dùng từ điển
+- [x] Nối vào app (`SubtitleTranslator`): câu đọc được → dịch → hiện trên cửa sổ chính và overlay vùng phụ đề (thay chữ mẫu Stage 2); phụ đề tắt thì ẩn. Chỉ hiện kết quả của câu mới nhất. Câu sửa khác <3 từ so với câu đã dịch thì không dịch lại
+- [x] Cửa sổ chính: chọn bộ dịch (Mock/Gemini, lưu vào settings), ô nhập key (PasswordBox → DPAPI), nút xóa cache hồ sơ, ô bản dịch + thời gian dịch và tổng độ trễ
+- [x] Lỗi dịch hiện `⚠ <lý do>` trên overlay và cửa sổ chính (FR-13), vòng đọc vẫn chạy
+- [ ] Chạy thử trên cửa sổ thật với bộ dịch giả
+- [x] Có key free (24/11). Công cụ `tools/AppTranslator.TranslateCheck` (đọc key từ secrets.bin, không in ra): `--models` liệt kê model; dịch `samples/witcher3/translate-check.txt` (16 câu OCR thật kèm lỗi, đúng thứ tự hội thoại)
+  - **Chốt `gemini-3.5-flash-lite`**: 16/16 câu, trung vị 725–860 ms, lớn nhất 1.4–1.6 s (câu đầu). Cộng ~0.4 s đọc phụ đề → tổng ~1.1–1.3 s, đạt mục tiêu 1.5 s phần lớn thời gian
+  - `gemini-3.1-flash-lite` và `gemini-3.8-flash`: key free bị quá tải (timeout >8 s, 503) → không dùng
+  - Gemini tự hiểu đúng hầu hết lỗi OCR ("Guessshe", "tpawake", "havetÖtell", "(töthe", "ÄJgh", "yoüyere", "Donlttry"). Sai: "Jöhn df8iügge" mất tên John of Brugge; "Ghouls and Alghouls" mỗi lần dịch một kiểu → nên thêm vào glossary; Ciri nói với Vesemir xưng "ta" → hồ sơ cần quy tắc xưng hô theo nhân vật (khách cung cấp)
+  - **Giới hạn key free**: chạy liên tục ~15 câu/phút thì bị 429. Hội thoại dồn dập có thể chạm giới hạn → app báo "Hết lượt dịch" trên overlay; cache chỉ giúp câu lặp. Demo dài hoặc chơi thật nên dùng key trả phí hoặc dự phòng Google Translate
 - **Xong khi:** dịch được câu mẫu, đo được độ trễ
 
 ## Stage 6 – Ghép pipeline phụ đề (M) · FR-04, FR-06, FR-12 · Gate 2

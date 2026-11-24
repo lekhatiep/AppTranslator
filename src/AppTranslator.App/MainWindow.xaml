@@ -23,6 +23,20 @@
         <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0"
                    Text="WindowsGraphicsCapture: chụp cả khi cửa sổ bị che, click chuột xuyên qua chữ dịch, nhưng Windows 10 hiện viền vàng. DesktopDuplication: không viền vàng, nhưng cửa sổ game phải nằm trên cùng và click trúng ô chữ dịch sẽ bị bỏ qua (click chỗ khác vẫn vào game)." />
 
+        <TextBlock Text="Bộ dịch" Margin="0,12,0,4" />
+        <DockPanel>
+            <Button DockPanel.Dock="Right" Content="Xóa cache hồ sơ" Width="120" Margin="6,0,0,0"
+                    Command="{Binding ClearCacheCommand}" />
+            <ComboBox ItemsSource="{Binding TranslatorProviders}"
+                      SelectedItem="{Binding SelectedTranslatorProvider}" />
+        </DockPanel>
+        <DockPanel Margin="0,6,0,0">
+            <TextBlock DockPanel.Dock="Left" Text="Key Gemini" VerticalAlignment="Center" Width="80" />
+            <Button DockPanel.Dock="Right" Content="Lưu key" Width="80" Margin="6,0,0,0" Click="OnSaveApiKeyClick" />
+            <PasswordBox x:Name="ApiKeyBox" />
+        </DockPanel>
+        <TextBlock FontSize="11" Foreground="Gray" Text="{Binding ApiKeyHint}" Margin="0,4,0,0" />
+
         <CheckBox Content="Bật dịch (hiện overlay)" IsChecked="{Binding IsTranslationEnabled}" Margin="0,16,0,0" />
         <TextBlock FontSize="11" Foreground="Gray" Text="{Binding HotkeyHint}" Margin="0,4,0,0" />
 
@@ -36,5 +50,9 @@
         <TextBlock Text="Phụ đề vừa đọc (tiếng Anh)" FontWeight="SemiBold" Margin="0,16,0,4" />
         <TextBox Text="{Binding LastSubtitle, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="48" />
         <TextBlock FontSize="11" Foreground="Gray" Text="{Binding LastSubtitleTiming}" Margin="0,4,0,0" />
+
+        <TextBlock Text="Bản dịch" FontWeight="SemiBold" Margin="0,12,0,4" />
+        <TextBox Text="{Binding LastTranslation, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="48" />
+        <TextBlock FontSize="11" Foreground="Gray" Text="{Binding LastTranslationTiming}" Margin="0,4,0,0" />
     </StackPanel>
 </Window>
