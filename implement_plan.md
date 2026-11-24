@@ -152,6 +152,7 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Truyền khung chữ gốc từ câu đọc được sang overlay (bản dịch và thông báo lỗi đè đúng chỗ chữ gốc)
 - [x] `PipelineMetric` + `TranslationHistory` (`SqliteHistoryStore`, cùng translator.db, 3 test): mỗi câu dịch ghi chụp+chờ đứng yên / OCR / dịch / vẽ / tổng (từ khung đầu thấy câu tới lúc bản dịch hiện, chặt hơn AC-05 vốn tính từ lúc chữ ổn định); câu sửa lại không tính số đo. Giữ 7 ngày
 - [x] Màn "Lịch sử dịch": 200 câu gần nhất, nguồn (AI/cache), OCR/dịch/tổng ms, p50/p90 độ trễ tổng (`LatencyStats`, 2 test)
+- [x] Chạy thật (24/11, video Witcher 3 + Gemini free, 25 câu): phần app (chụp + chờ đứng yên + OCR + vẽ) ổn định ~350–480 ms; câu từ cache tổng ~400 ms; câu gọi Gemini tổng 1.5–3.0 s → p50 435 ms (19/25 câu từ cache vì xem lại video), p90 2110 ms. Đo trực tiếp Gemini lúc đó: 1.6 s – 42 s, có 503 "high demand"; không phải do chế độ suy nghĩ (0 token suy nghĩ). **Khách chọn giữ nguyên** (chấp nhận p90 phụ thuộc tải Gemini free); hướng khác: key trả phí, hoặc gọi song song Google Translate (mục bảo trì)
 - [ ] **Gate 2:** demo phụ đề cho khách
 
 ## Stage 7 – Lựa chọn hội thoại (M) · FR-05
