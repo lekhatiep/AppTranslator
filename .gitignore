@@ -490,3 +490,4 @@ samples/**/images/
 
 # Kết quả benchmark (CSV, ảnh sau tiền xử lý), sinh lại được.
 samples/**/results/
+samples/**/videos/

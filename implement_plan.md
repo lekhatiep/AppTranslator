@@ -112,14 +112,19 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [ ] Unit test trên ảnh tĩnh
 - **Xong khi:** ra đúng câu tiếng Anh từ ảnh mẫu và cửa sổ thật
 
-## Stage 5 – Dịch (M) · FR-09, FR-10, FR-13
-- [ ] `MockTranslator` (dùng khi chưa có key)
-- [ ] `PromptBuilder`: văn phong, xưng hô, `keepNames`, glossary, N câu trước
-- [ ] `GeminiTranslator` (REST, HttpClient) *(chờ key)*
-- [ ] Lưu key bằng DPAPI (`secrets.bin`), không ghi ra log
-- [ ] SQLite (Microsoft.Data.Sqlite + Dapper): `TranslationCache`, khóa (ProfileId, SourceHash, ProfileVersion); xóa cache theo hồ sơ
-- [ ] Xử lý lỗi 401 / 429 / timeout / mất mạng → trạng thái trên overlay
-- [ ] Bỏ qua câu trùng câu trước và câu có độ tin cậy OCR thấp
+## Stage 5 – Dịch (M) · FR-09, FR-10, FR-13 · 🟡 đang làm (nhánh `stage_5`)
+- [x] `MockTranslator` (dùng khi chưa có key; không ghi vào cache)
+- [x] `PromptBuilder`: văn phong, xưng hô, `keepNames`, glossary, N câu trước (EN + VI); dặn AI câu nguồn là OCR có thể sai nhẹ, tự đoán ý đúng
+- [x] `GeminiTranslator` (REST generateContent, key qua header `x-goog-api-key`, timeout 8 s); test bằng phản hồi HTTP giả. Model để trong settings (`geminiModel`, tạm `gemini-3.5-flash-lite`) *(chạy thật khi có key)*
+- [x] Lưu key bằng DPAPI (`SecretStore`, `secrets.bin`, theo tài khoản Windows), không ghi ra log
+- [x] SQLite (`SqliteTranslationCache`, `data\translator.db`): khóa (ProfileId, SHA-256 câu đã chuẩn hóa, ProfileVersion) nên "Butyou were" và "But you were" dùng chung bản dịch; đếm HitCount; xóa cache theo hồ sơ
+- [x] Lỗi → `TranslationException` có loại: key sai (400 API_KEY_INVALID/401/403), hết lượt (429), quá chậm, mất mạng, Gemini lỗi (5xx), khác; câu báo tiếng Việt ngắn
+- [x] `TranslationService`: bỏ câu rác (`OcrQuality`: <70% từ "giống từ" vì có số/ký tự lạ) → trùng câu ngay trước thì dùng lại → cache → gọi AI kèm ngữ cảnh; đổi hồ sơ thì xóa ngữ cảnh
+- [x] Test: 26 test mới (tổng 72 trên nhánh này)
+- Giới hạn: lọc rác không bắt được rác toàn chữ cái ("uldll", "duölegsla ee ge") vì không dùng từ điển
+- [ ] Nối vào app (chờ `stage_4` vào `development`): vòng đọc phụ đề → dịch → hiện câu dịch; ô nhập key; báo lỗi; nút xóa cache; chỉ dịch lại khi câu sửa khác đáng kể
+- [ ] Hiện trạng thái lỗi trên overlay (FR-13)
+- [ ] Khi có key: chạy thử các câu OCR lỗi thật trong log, đo độ trễ và tỉ lệ dịch đúng ý; chốt model
 - **Xong khi:** dịch được câu mẫu, đo được độ trễ
 
 ## Stage 6 – Ghép pipeline phụ đề (M) · FR-04, FR-06, FR-12 · Gate 2
