@@ -1,15 +1,18 @@
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using AppTranslator.App.Interop;
 using AppTranslator.Core.Abstractions;
+using AppTranslator.Core.Layout;
 using AppTranslator.Core.Profiles;
 
 namespace AppTranslator.App.Overlay;
 
 /// <summary>Một khối chữ hiển thị đè lên vùng chữ gốc.</summary>
-internal sealed record OverlayText(Region Region, string Text);
+/// <param name="Anchor">Khung chữ gốc (tỉ lệ cửa sổ) nếu biết; phụ đề sẽ đè đúng khung này thay vì phủ cả vùng.</param>
+internal sealed record OverlayText(Region Region, string Text, LayoutRect? Anchor = null);
 
 /// <summary>Kiểu chữ của overlay, dựng từ OverlaySettings.</summary>
 internal sealed record OverlayStyle(double FontSize, Brush Background);
@@ -103,6 +106,9 @@ public partial class OverlayWindow : Window
 
     private Border CreateTextBox(OverlayText text, OverlayStyle style)
     {
+        if (text.Region.Type == RegionType.Subtitle)
+            return CreateSubtitleBox(text, style);
+
         var region = text.Region;
         var textBlock = new TextBlock
         {
@@ -124,6 +130,57 @@ public partial class OverlayWindow : Window
         };
         Canvas.SetLeft(border, region.X * ActualWidth);
         Canvas.SetTop(border, region.Y * ActualHeight);
+        return border;
+    }
+
+    /// <summary>
+    /// Phụ đề: ô vừa với bản dịch, phủ khung chữ gốc, mở rộng lên trên và co chữ khi dài (<see cref="SubtitleLayout"/>).
+    /// Chưa biết khung chữ gốc (vd thông báo lỗi) thì neo vào đáy giữa vùng phụ đề.
+    /// </summary>
+    private Border CreateSubtitleBox(OverlayText text, OverlayStyle style)
+    {
+        var region = text.Region;
+        var area = new LayoutRect(region.X * ActualWidth, region.Y * ActualHeight, region.W * ActualWidth, region.H * ActualHeight);
+        var anchor = text.Anchor is { } ratio
+            ? new LayoutRect(ratio.X * ActualWidth, ratio.Y * ActualHeight, ratio.Width * ActualWidth, ratio.Height * ActualHeight)
+            : new LayoutRect(area.X + area.Width / 2, area.Bottom - TextPadding, 0, 0);
+
+        var textBlock = new TextBlock
+        {
+            Text = text.Text,
+            Foreground = Brushes.White,
+            TextWrapping = TextWrapping.Wrap,
+            TextAlignment = TextAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+
+        var typeface = new Typeface(textBlock.FontFamily, textBlock.FontStyle, textBlock.FontWeight, textBlock.FontStretch);
+        double pixelsPerDip = VisualTreeHelper.GetDpi(this).PixelsPerDip;
+        (double Width, double Height) Measure(double fontSize, double maxWidth)
+        {
+            var formatted = new FormattedText(text.Text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, typeface,
+                fontSize, Brushes.White, pixelsPerDip)
+            {
+                MaxTextWidth = maxWidth,
+                TextAlignment = TextAlignment.Center,
+            };
+            // +1: tránh TextBlock xuống dòng khác FormattedText vì làm tròn.
+            return (formatted.Width + 1, formatted.Height);
+        }
+
+        var layout = SubtitleLayout.Compute(anchor, area, style.FontSize, TextPadding, Measure);
+        textBlock.FontSize = layout.FontSize;
+
+        var border = new Border
+        {
+            Background = style.Background,
+            Padding = new Thickness(TextPadding),
+            Width = layout.Box.Width,
+            Height = layout.Box.Height,
+            Child = textBlock,
+        };
+        Canvas.SetLeft(border, layout.Box.X);
+        Canvas.SetTop(border, layout.Box.Y);
         return border;
     }
 

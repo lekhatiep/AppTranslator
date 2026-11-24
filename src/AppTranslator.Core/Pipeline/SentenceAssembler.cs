@@ -2,6 +2,9 @@ using AppTranslator.Core.Abstractions;
 
 namespace AppTranslator.Core.Pipeline;
 
+/// <param name="Bounds">Khung bao chữ phụ đề trong ảnh vùng (pixel), null nếu không đọc ra hàng nào.</param>
+public sealed record AssembledSentence(string Text, PixelRect? Bounds);
+
 /// <summary>
 /// FR-04: ghép các dòng OCR của vùng phụ đề thành một câu.
 /// Phụ đề luôn căn giữa màn hình, còn chữ HUD (hướng dẫn phím...) nằm lệch sang một bên,
@@ -18,15 +21,25 @@ public static class SentenceAssembler
 
     public static string Assemble(IReadOnlyList<OcrLine> lines, int regionWidth)
     {
+        return AssembleWithBounds(lines, regionWidth).Text;
+    }
+
+    /// <summary>Như <see cref="Assemble"/>, kèm khung bao các hàng được giữ (null nếu không có hàng nào) để overlay đè đúng chỗ chữ gốc.</summary>
+    public static AssembledSentence AssembleWithBounds(IReadOnlyList<OcrLine> lines, int regionWidth)
+    {
         var rows = GroupIntoRows(lines);
         var keptTexts = new List<string>();
+        PixelRect? bounds = null;
         foreach (var row in rows)
         {
-            if (IsCentered(row.Bounds, regionWidth))
-                keptTexts.Add(row.Text);
+            if (!IsCentered(row.Bounds, regionWidth))
+                continue;
+
+            keptTexts.Add(row.Text);
+            bounds = bounds is null ? row.Bounds : bounds.Value.Union(row.Bounds);
         }
 
-        return NormalizeSpaces(string.Join(" ", keptTexts));
+        return new AssembledSentence(NormalizeSpaces(string.Join(" ", keptTexts)), bounds);
     }
 
     /// <summary>Gộp các mảnh cùng hàng (trái sang phải), trả về các hàng theo thứ tự trên xuống.</summary>
