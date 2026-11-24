@@ -52,4 +52,17 @@ public sealed class OcrVoteTests
     {
         Assert.Equal("a b", OcrVote.SelectMedian(["a b", "a c"]));
     }
+
+    [Fact]
+    public void AverageDistance_CountsWordEdits()
+    {
+        // "But you were" → "Butyou were": thay 1 từ + xóa 1 từ = 2; tới chính nó = 0.
+        Assert.Equal(1.0, OcrVote.AverageDistance("But you were", ["But you were", "Butyou were"]));
+    }
+
+    [Fact]
+    public void AverageDistance_NoCandidates_Zero()
+    {
+        Assert.Equal(0.0, OcrVote.AverageDistance("Strike!", []));
+    }
 }

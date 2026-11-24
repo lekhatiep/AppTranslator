@@ -193,6 +193,12 @@ public partial class MainViewModel : ObservableObject
     private void OnSentenceRead(SubtitleRead read)
     {
         LastSubtitle = read.Text;
+        if (read.IsCorrection)
+        {
+            LastSubtitleTiming = $"Đã sửa lại sau khi đọc thêm ({DateTime.Now:HH:mm:ss})";
+            return;
+        }
+
         LastSubtitleTiming = $"OCR {read.OcrDuration.TotalMilliseconds:F0} ms, trễ từ lúc câu hiện {read.Latency.TotalMilliseconds:F0} ms ({DateTime.Now:HH:mm:ss})";
     }
 

@@ -40,4 +40,18 @@ public static class OcrVote
 
         return bestIndex < 0 ? string.Empty : candidates[bestIndex];
     }
+
+    /// <summary>Khoảng cách trung bình (theo từ) từ một kết quả tới các kết quả trong danh sách. Danh sách rỗng thì là 0.</summary>
+    public static double AverageDistance(string text, IReadOnlyList<string> candidates)
+    {
+        if (candidates.Count == 0)
+            return 0;
+
+        string[] words = text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        int totalDistance = 0;
+        foreach (string candidate in candidates)
+            totalDistance += WordDistance.Between(words, candidate.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+        return (double)totalDistance / candidates.Count;
+    }
 }
