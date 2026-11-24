@@ -52,6 +52,7 @@ public partial class App : Application
                 services.AddSingleton<SubtitleReader>();
                 services.AddSingleton<SecretStore>();
                 services.AddSingleton(_ => new SqliteTranslationCache(paths.DatabaseFile));
+                services.AddSingleton(_ => new SqliteHistoryStore(paths.DatabaseFile));
                 // Một HttpClient dùng suốt đời app (tạo mới mỗi lần gọi sẽ cạn socket).
                 services.AddSingleton(_ => new HttpClient());
                 services.AddSingleton<SubtitleTranslator>();

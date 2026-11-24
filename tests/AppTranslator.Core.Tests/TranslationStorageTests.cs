@@ -79,6 +79,69 @@ public sealed class SqliteTranslationCacheTests : IDisposable
     }
 }
 
+public sealed class SqliteHistoryStoreTests : IDisposable
+{
+    private readonly string _root = Path.Combine(Path.GetTempPath(), "AppTranslatorTests", Guid.NewGuid().ToString("N"));
+    private readonly SqliteHistoryStore _store;
+
+    public SqliteHistoryStoreTests()
+    {
+        _store = new SqliteHistoryStore(Path.Combine(_root, "data", "translator.db"));
+    }
+
+    public void Dispose()
+    {
+        SqliteConnection.ClearAllPools();
+        if (Directory.Exists(_root))
+            Directory.Delete(_root, recursive: true);
+    }
+
+    [Fact]
+    public async Task Add_ThenGetRecent_NewestFirst_WithTiming()
+    {
+        var now = DateTimeOffset.Now;
+        var timing = new PipelineTiming(320, 50, 800, 5, 1175, "WindowsOcr");
+        await _store.AddAsync(new HistoryEntry(now.AddSeconds(-5), "witcher3", "Subtitle", "Hm? What?", "Hả? Gì?", false, timing));
+        await _store.AddAsync(new HistoryEntry(now, "witcher3", "Subtitle", "End of discussion.", "Hết chuyện.", true, null));
+
+        var recent = await _store.GetRecentAsync(10);
+
+        Assert.Equal(2, recent.Count);
+        Assert.Equal("End of discussion.", recent[0].SourceText);
+        Assert.True(recent[0].FromCache);
+        Assert.Null(recent[0].Timing);
+        Assert.Equal(timing, recent[1].Timing);
+        Assert.Equal(now.AddSeconds(-5).ToUnixTimeMilliseconds(), recent[1].CreatedAt.ToUnixTimeMilliseconds());
+    }
+
+    [Fact]
+    public async Task GetRecent_RespectsLimit()
+    {
+        for (int i = 0; i < 5; i++)
+            await _store.AddAsync(new HistoryEntry(DateTimeOffset.Now, "witcher3", "Subtitle", $"Line {i}", $"Câu {i}", false, null));
+
+        var recent = await _store.GetRecentAsync(3);
+
+        Assert.Equal(["Line 4", "Line 3", "Line 2"], recent.Select(entry => entry.SourceText));
+    }
+
+    [Fact]
+    public async Task DeleteOlderThan_RemovesOldEntriesAndTheirMetrics()
+    {
+        var now = DateTimeOffset.Now;
+        var timing = new PipelineTiming(1, 1, 1, 1, 4, "WindowsOcr");
+        await _store.AddAsync(new HistoryEntry(now.AddDays(-10), "witcher3", "Subtitle", "Old.", "Cũ.", false, timing));
+        await _store.AddAsync(new HistoryEntry(now, "witcher3", "Subtitle", "New.", "Mới.", false, timing));
+
+        await _store.DeleteOlderThanAsync(now.AddDays(-7));
+
+        var recent = await _store.GetRecentAsync(10);
+        Assert.Equal(["New."], recent.Select(entry => entry.SourceText));
+        await using var connection = new SqliteConnection($"Data Source={Path.Combine(_root, "data", "translator.db")}");
+        Assert.Equal(1, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM PipelineMetric"));
+    }
+}
+
 [SupportedOSPlatform("windows")]
 public sealed class SecretStoreTests : IDisposable
 {

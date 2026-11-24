@@ -150,7 +150,8 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [ ] `TranslationPipeline` dùng `Channel<T>` *(xem lại: Stage 5 đã nối đọc → dịch trên luồng UI, có bỏ kết quả cũ; chỉ làm nếu đo thấy cần)*
 - [x] Bố cục tiếng Việt (`SubtitleLayout`, Core, 9 test): ô dịch phủ khung chữ gốc (OCR trả khung các hàng phụ đề, hợp qua các khung bỏ phiếu), căn giữa, giữ cạnh dưới; xuống dòng theo bề rộng chữ gốc (tối thiểu nửa vùng), mở rộng lên trên tới mép trên vùng; không đủ chỗ thì co chữ tới 60%; vẫn tràn thì vượt lên trên vùng. Không biết khung chữ gốc (vd thông báo lỗi) thì neo đáy giữa vùng. Dựng thử trên ảnh mẫu: câu 3 dòng phủ kín chữ Anh, cỡ chữ 28 → 27
 - [x] Truyền khung chữ gốc từ câu đọc được sang overlay (bản dịch và thông báo lỗi đè đúng chỗ chữ gốc)
-- [ ] `PipelineMetric` + `TranslationHistory`; màn xem lịch sử
+- [x] `PipelineMetric` + `TranslationHistory` (`SqliteHistoryStore`, cùng translator.db, 3 test): mỗi câu dịch ghi chụp+chờ đứng yên / OCR / dịch / vẽ / tổng (từ khung đầu thấy câu tới lúc bản dịch hiện, chặt hơn AC-05 vốn tính từ lúc chữ ổn định); câu sửa lại không tính số đo. Giữ 7 ngày
+- [x] Màn "Lịch sử dịch": 200 câu gần nhất, nguồn (AI/cache), OCR/dịch/tổng ms, p50/p90 độ trễ tổng (`LatencyStats`, 2 test)
 - [ ] **Gate 2:** demo phụ đề cho khách
 
 ## Stage 7 – Lựa chọn hội thoại (M) · FR-05

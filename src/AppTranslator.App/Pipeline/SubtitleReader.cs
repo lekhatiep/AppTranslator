@@ -23,6 +23,9 @@ public sealed record SubtitleRead(string Text, TimeSpan OcrDuration, TimeSpan La
 /// </summary>
 public sealed class SubtitleReader
 {
+    /// <summary>Cấu hình OCR đang dùng (Gate 1 tạm), ghi kèm số đo độ trễ.</summary>
+    public const string OcrEngineName = "WindowsOcr+Sharpen";
+
     private static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan StableDuration = TimeSpan.FromMilliseconds(300);
 
