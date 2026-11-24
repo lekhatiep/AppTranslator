@@ -135,9 +135,10 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [ ] Bỏ qua câu trùng câu trước và câu có độ tin cậy OCR thấp
 - **Xong khi:** dịch được câu mẫu, đo được độ trễ
 
-## Stage 6 – Ghép pipeline phụ đề (M) · FR-04, FR-06, FR-12 · Gate 2
-- [ ] `TranslationPipeline` dùng `Channel<T>`
-- [ ] Bố cục tiếng Việt: co chữ, xuống dòng, mở rộng lên trên
+## Stage 6 – Ghép pipeline phụ đề (M) · FR-04, FR-06, FR-12 · Gate 2 · 🟡 đang làm (nhánh `stage_6`)
+- [ ] `TranslationPipeline` dùng `Channel<T>` *(xem lại: Stage 5 đã nối đọc → dịch trên luồng UI, có bỏ kết quả cũ; chỉ làm nếu đo thấy cần)*
+- [x] Bố cục tiếng Việt (`SubtitleLayout`, Core, 9 test): ô dịch phủ khung chữ gốc (OCR trả khung các hàng phụ đề, hợp qua các khung bỏ phiếu), căn giữa, giữ cạnh dưới; xuống dòng theo bề rộng chữ gốc (tối thiểu nửa vùng), mở rộng lên trên tới mép trên vùng; không đủ chỗ thì co chữ tới 60%; vẫn tràn thì vượt lên trên vùng. Không biết khung chữ gốc (vd thông báo lỗi) thì neo đáy giữa vùng. Dựng thử trên ảnh mẫu: câu 3 dòng phủ kín chữ Anh, cỡ chữ 28 → 27
+- [ ] Truyền khung chữ gốc từ câu đọc được sang overlay (chờ `stage_5` vào `development`)
 - [ ] `PipelineMetric` + `TranslationHistory`; màn xem lịch sử
 - [ ] **Gate 2:** demo phụ đề cho khách
 
@@ -159,6 +160,7 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 ---
 
 ## Bảo trì (sau khi xong các stage)
+- [ ] Dự phòng Google Translate khi Gemini hết lượt (key free ~15 câu/phút) *(khách: để sau, 24/11)*
 - [ ] Overlay chế độ DXGI click-through hoàn toàn: thử cửa sổ Win32 thuần tự vẽ (GDI hoặc Direct2D/DirectWrite) thay WPF. Thử trước ~1 giờ, nếu đạt thì viết lại ~1–1,5 ngày; ảnh hưởng phần co chữ/xuống dòng của Stage 6
 - [ ] Đổi Gate 1 sang Ensemble (OcrVote trên Windows None/Sharpen/Upscale2x + Paddle None/Sharpen): phụ đề 82.6% → 91.0% trên 14 ảnh, đổi lại ~420 ms và ~1.8% CPU trung bình. Kiểm lại trên ảnh Chiaki trước khi đổi
 

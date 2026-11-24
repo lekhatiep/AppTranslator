@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using AppTranslator.Core.Abstractions;
+using AppTranslator.Core.Layout;
 using AppTranslator.Core.Pipeline;
 using AppTranslator.Core.Profiles;
 using AppTranslator.Imaging;
@@ -12,7 +13,8 @@ namespace AppTranslator.App.Pipeline;
 /// <param name="OcrDuration">Thời gian tiền xử lý + OCR các khung bỏ phiếu.</param>
 /// <param name="Latency">Từ khung đầu tiên thấy câu này tới khi đọc xong (gồm cả thời gian chờ chữ đứng yên).</param>
 /// <param name="IsCorrection">Cùng câu đang hiện nhưng đọc lại rõ hơn: thay câu cũ, không phải câu mới.</param>
-public sealed record SubtitleRead(string Text, TimeSpan OcrDuration, TimeSpan Latency, bool IsCorrection = false);
+/// <param name="TextBounds">Khung chữ phụ đề gốc theo tỉ lệ 0–1 của cửa sổ (để overlay đè đúng chỗ), null nếu không biết.</param>
+public sealed record SubtitleRead(string Text, TimeSpan OcrDuration, TimeSpan Latency, bool IsCorrection = false, LayoutRect? TextBounds = null);
 
 /// <summary>
 /// Vòng đọc phụ đề (FR-04): chụp ~10 khung/giây → cắt vùng phụ đề → chờ chữ đứng yên → OCR vài khung → chọn kết quả ở giữa.
@@ -101,7 +103,7 @@ public sealed class SubtitleReader
 
             if (change == SubtitleChange.Stable)
             {
-                var (read, candidates) = await ReadSentenceAsync(recentCrops, gate.StillSince, cancellationToken);
+                var (read, candidates) = await ReadSentenceAsync(recentCrops, area, frame.Width, frame.Height, gate.StillSince, cancellationToken);
                 if (read is null)
                     continue;
 
@@ -169,18 +171,26 @@ public sealed class SubtitleReader
     }
 
     /// <summary>Read = null nếu OCR không ra chữ. Candidates: các kết quả không rỗng của từng khung.</summary>
-    private async Task<(SubtitleRead? Read, List<string> Candidates)> ReadSentenceAsync(List<Frame> recentCrops, DateTimeOffset firstSeenAt, CancellationToken cancellationToken)
+    /// <param name="area">Vị trí vùng phụ đề trong khung hình, để đổi khung chữ sang tỉ lệ cửa sổ.</param>
+    private async Task<(SubtitleRead? Read, List<string> Candidates)> ReadSentenceAsync(
+        List<Frame> recentCrops, PixelRect area, int frameWidth, int frameHeight, DateTimeOffset firstSeenAt, CancellationToken cancellationToken)
     {
         // Lấy các khung cuối: khung đầu của lần đứng yên có thể còn đang chuyển cảnh/hiện dần.
         int start = Math.Max(0, recentCrops.Count - VoteFrameCount);
         var stopwatch = Stopwatch.StartNew();
         var candidates = new List<string>();
+        PixelRect? textBounds = null;
         for (int i = start; i < recentCrops.Count; i++)
         {
             var crop = recentCrops[i];
             var sharpened = await Task.Run(() => TextPreprocessor.Apply(crop, PreprocessMode.Sharpen), cancellationToken);
             var result = await _ocr!.RecognizeAsync(sharpened, cancellationToken);
-            candidates.Add(SentenceAssembler.Assemble(result.Lines, crop.Width));
+            var sentence = SentenceAssembler.AssembleWithBounds(result.Lines, crop.Width);
+            candidates.Add(sentence.Text);
+
+            // Hợp khung của mọi khung đem bỏ phiếu: chắc chắn phủ hết chữ gốc dù mỗi khung đọc ra hơi khác.
+            if (sentence.Bounds is { } bounds)
+                textBounds = textBounds is null ? bounds : textBounds.Value.Union(bounds);
         }
 
         string text = OcrVote.SelectMedian(candidates);
@@ -199,6 +209,16 @@ public sealed class SubtitleReader
         }
 
         candidates.RemoveAll(candidate => candidate.Length == 0);
-        return (new SubtitleRead(text, stopwatch.Elapsed, latency), candidates);
+        LayoutRect? windowBounds = null;
+        if (textBounds is { } box)
+        {
+            windowBounds = new LayoutRect(
+                (double)(area.X + box.X) / frameWidth,
+                (double)(area.Y + box.Y) / frameHeight,
+                (double)box.Width / frameWidth,
+                (double)box.Height / frameHeight);
+        }
+
+        return (new SubtitleRead(text, stopwatch.Elapsed, latency, TextBounds: windowBounds), candidates);
     }
 }
