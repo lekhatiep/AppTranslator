@@ -1,6 +1,7 @@
 using System.IO;
 using System.Windows;
 using AppTranslator.App.Overlay;
+using AppTranslator.App.Pipeline;
 using AppTranslator.Capture.Windows;
 using AppTranslator.Core.Abstractions;
 using AppTranslator.Core.Settings;
@@ -47,6 +48,7 @@ public partial class App : Application
                 services.AddSingleton<DesktopDuplicationCapture>();
                 services.AddSingleton<OverlayController>();
                 services.AddSingleton<HotkeyService>();
+                services.AddSingleton<SubtitleReader>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainWindow>();
             })

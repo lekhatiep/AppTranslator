@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using AppTranslator.Core.Abstractions;
 using OcrResult = AppTranslator.Core.Abstractions.OcrResult;
+using Microsoft.ML.OnnxRuntime;
 using RapidOcrNet;
 using SkiaSharp;
 
@@ -28,15 +29,24 @@ public sealed class RapidOcrEngine : IOcrEngine, IDisposable
     private const string RecognizerModel = "latin_PP-OCRv5_rec_mobile_infer.onnx";
     private const string CharacterDictionary = "ppocrv5_latin_dict.txt";
 
+    // ONNX Runtime mặc định dùng mọi luồng CPU và chờ bận (spin): mỗi lần đọc chiếm ~94% cả máy (20 luồng),
+    // ~6.3 s CPU. 4 luồng, không spin: 177 ms thay vì 338 ms, ~0.47 s CPU, kết quả giống hệt (đo Stage 4).
+    // Quan trọng vì app chạy cạnh Chiaki: không được làm giật stream.
+    private const int OnnxThreadCount = 4;
+
     public RapidOcrEngine()
     {
+        var sessionOptions = new SessionOptions { IntraOpNumThreads = OnnxThreadCount };
+        sessionOptions.AddSessionConfigEntry("session.intra_op.allow_spinning", "0");
+
         // Đường dẫn tuyệt đối: InitModels() mặc định tìm theo thư mục hiện hành, sai khi chạy từ thư mục khác.
         string directory = Path.Combine(AppContext.BaseDirectory, ModelDirectory);
         _ocr.InitModels(
             Path.Combine(directory, DetectorModel),
             Path.Combine(directory, ClassifierModel),
             Path.Combine(directory, RecognizerModel),
-            Path.Combine(directory, CharacterDictionary));
+            Path.Combine(directory, CharacterDictionary),
+            sessionOptions);
     }
 
     public string Name => "PaddleOcrV5";
