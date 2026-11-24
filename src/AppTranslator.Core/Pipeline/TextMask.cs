@@ -13,8 +13,11 @@ public sealed class TextMask
     private const int SampleStep = 2;
     private const int MinBrightSamplesPerCell = 2;
 
-    // Độ sáng (0–255) từ đây trở lên coi là điểm chữ. Chữ trắng ~230–255, chữ vàng (255,220,100) ~217.
-    private const int MinTextLuma = 200;
+    /// <summary>
+    /// Độ sáng (0–255) mặc định từ đây trở lên coi là điểm chữ: phụ đề trắng ~230–255.
+    /// Chữ lựa chọn hội thoại vàng sẫm hơn (sáng nhất ~165, đo trên ảnh mẫu) nên dùng ngưỡng thấp hơn.
+    /// </summary>
+    public const int DefaultMinTextLuma = 200;
 
     // Ít hơn tỉ lệ ô này thì coi như không có chữ (vài đốm sáng lẻ của nền).
     private const double MinTextCellRatio = 0.005;
@@ -45,8 +48,8 @@ public sealed class TextMask
 
     public bool HasText => _cells.Length > 0 && (double)TextCellCount / _cells.Length >= MinTextCellRatio;
 
-    /// <summary>Ảnh BGRA (vùng phụ đề đã cắt, chưa tiền xử lý).</summary>
-    public static TextMask FromFrame(Frame image)
+    /// <summary>Ảnh BGRA (vùng chữ đã cắt, chưa tiền xử lý).</summary>
+    public static TextMask FromFrame(Frame image, int minTextLuma = DefaultMinTextLuma)
     {
         int columns = image.Width / CellSize;
         int rows = image.Height / CellSize;
@@ -55,7 +58,7 @@ public sealed class TextMask
         for (int row = 0; row < rows; row++)
         {
             for (int column = 0; column < columns; column++)
-                cells[row * columns + column] = CountBrightSamples(image, column * CellSize, row * CellSize) >= MinBrightSamplesPerCell;
+                cells[row * columns + column] = CountBrightSamples(image, column * CellSize, row * CellSize, minTextLuma) >= MinBrightSamplesPerCell;
         }
 
         return new TextMask(columns, rows, cells);
@@ -87,7 +90,7 @@ public sealed class TextMask
         return (double)differentCells / textCellsInEither;
     }
 
-    private static int CountBrightSamples(Frame image, int left, int top)
+    private static int CountBrightSamples(Frame image, int left, int top, int minTextLuma)
     {
         int count = 0;
         for (int y = top; y < top + CellSize; y += SampleStep)
@@ -100,7 +103,7 @@ public sealed class TextMask
                 int green = image.Pixels[offset + 1];
                 int red = image.Pixels[offset + 2];
                 int luma = (red * 299 + green * 587 + blue * 114) / 1000;
-                if (luma >= MinTextLuma)
+                if (luma >= minTextLuma)
                     count++;
             }
         }

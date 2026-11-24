@@ -55,5 +55,8 @@
         <TextBlock Text="Bản dịch" FontWeight="SemiBold" Margin="0,12,0,4" />
         <TextBox Text="{Binding LastTranslation, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="48" />
         <TextBlock FontSize="11" Foreground="Gray" Text="{Binding LastTranslationTiming}" Margin="0,4,0,0" />
+
+        <TextBlock Text="Lựa chọn hội thoại (Anh → Việt)" FontWeight="SemiBold" Margin="0,12,0,4" />
+        <TextBox Text="{Binding LastChoices, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MinHeight="48" />
     </StackPanel>
 </Window>

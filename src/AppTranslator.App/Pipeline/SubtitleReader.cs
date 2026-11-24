@@ -17,16 +17,14 @@ namespace AppTranslator.App.Pipeline;
 public sealed record SubtitleRead(string Text, TimeSpan OcrDuration, TimeSpan Latency, bool IsCorrection = false, LayoutRect? TextBounds = null);
 
 /// <summary>
-/// Vòng đọc phụ đề (FR-04): chụp ~10 khung/giây → cắt vùng phụ đề → chờ chữ đứng yên → OCR vài khung → chọn kết quả ở giữa.
-/// Gọi chụp trên luồng đã gọi RunAsync (luồng UI, giống các nút chụp khác) để hai engine chụp không bị gọi từ hai luồng;
-/// phần tốn CPU (cắt ảnh, mặt nạ, làm nét) chạy nền. Sự kiện được gọi trên luồng đã gọi RunAsync.
+/// Đọc phụ đề (FR-04) từ từng khung của <see cref="ReaderLoop"/>: cắt vùng phụ đề → chờ chữ đứng yên → OCR vài khung →
+/// chọn kết quả ở giữa. Phần tốn CPU (cắt ảnh, mặt nạ, làm nét) chạy nền; sự kiện được gọi trên luồng của vòng chụp.
 /// </summary>
-public sealed class SubtitleReader
+public sealed class SubtitleReader : IFrameProcessor
 {
     /// <summary>Cấu hình OCR đang dùng (Gate 1 tạm), ghi kèm số đo độ trễ.</summary>
     public const string OcrEngineName = "WindowsOcr+Sharpen";
 
-    private static readonly TimeSpan FrameInterval = TimeSpan.FromMilliseconds(100);
     private static readonly TimeSpan StableDuration = TimeSpan.FromMilliseconds(300);
 
     // Số khung gần nhất đem OCR rồi bỏ phiếu: lỗi ngẫu nhiên của một khung (nhiễu nén) bị loại.
@@ -45,11 +43,13 @@ public sealed class SubtitleReader
     // ("df8rugge", "blithe's") và câu bị sửa qua lại mà không tốt hơn; bản sửa đúng thì luôn lặp lại y hệt. Sửa 21 → 10 lần.
     private const int MinCorrectionCopies = 2;
 
-    // Cứ ngần này khung thì ghi log thời gian xử lý trung bình mỗi khung (đo tải của vòng chụp).
-    private const int TimingLogInterval = 100;
-
     private readonly ILogger<SubtitleReader> _logger;
+    private readonly List<Frame> _recentCrops = [];
+    private readonly List<string> _sentenceVotes = [];
     private WindowsOcrEngine? _ocr;
+    private Region? _region;
+    private StabilityGate _gate = new(StableDuration);
+    private string _lastSentence = string.Empty;
 
     public SubtitleReader(ILogger<SubtitleReader> logger)
     {
@@ -60,96 +60,85 @@ public sealed class SubtitleReader
 
     public event Action? SubtitleCleared;
 
-    /// <summary>Chạy tới khi bị hủy (ném OperationCanceledException). Ném InvalidOperationException nếu Windows thiếu OCR tiếng Anh.</summary>
-    public async Task RunAsync(Func<CancellationToken, Task<Frame?>> captureWindow, Region region, CancellationToken cancellationToken)
+    /// <summary>Bắt đầu đọc vùng này, quên trạng thái cũ. Ném InvalidOperationException nếu Windows thiếu OCR tiếng Anh.</summary>
+    public void Start(Region region)
     {
         _ocr ??= new WindowsOcrEngine();
-
-        var gate = new StabilityGate(StableDuration);
-        var recentCrops = new List<Frame>();
-        var tickStopwatch = new Stopwatch();
-        int tickCount = 0;
-        string lastSentence = string.Empty;
-        var sentenceVotes = new List<string>();
-        using var timer = new PeriodicTimer(FrameInterval);
-
+        _region = region;
+        _gate = new StabilityGate(StableDuration);
+        _recentCrops.Clear();
+        _sentenceVotes.Clear();
+        _lastSentence = string.Empty;
         _logger.LogInformation("Bắt đầu đọc phụ đề, vùng x={X} y={Y} w={W} h={H}", region.X, region.Y, region.W, region.H);
-        while (await timer.WaitForNextTickAsync(cancellationToken))
-        {
-            tickStopwatch.Start();
-            var frame = await captureWindow(cancellationToken);
-            if (frame is null)
-            {
-                tickStopwatch.Stop();
-                continue;
-            }
-
-            var area = region.ToPixelRect(frame.Width, frame.Height);
-            var (crop, mask) = await Task.Run(() => CropAndMask(frame, area), cancellationToken);
-            var change = gate.Update(mask, frame.CapturedAt);
-            tickStopwatch.Stop();
-            _logger.LogTrace("Khung {Time:HH:mm:ss.fff}: lệch {Ratio:F2}, ô chữ {Cells}, {Change}",
-                frame.CapturedAt, gate.LastChangeRatio, mask.TextCellCount, change);
-            tickCount++;
-            if (tickCount % TimingLogInterval == 0)
-            {
-                _logger.LogDebug("Vòng chụp: trung bình {Milliseconds:F1} ms/khung (chụp + cắt + mặt nạ, không tính OCR)",
-                    tickStopwatch.Elapsed.TotalMilliseconds / TimingLogInterval);
-                tickStopwatch.Reset();
-            }
-
-            if (change == SubtitleChange.Changed)
-                recentCrops.Clear();
-
-            if (recentCrops.Count < MaxBufferedFrames)
-                recentCrops.Add(crop);
-
-            if (change == SubtitleChange.Stable)
-            {
-                var (read, candidates) = await ReadSentenceAsync(recentCrops, area, frame.Width, frame.Height, gate.StillSince, cancellationToken);
-                if (read is null)
-                    continue;
-
-                // Nền sau phụ đề chuyển động (nhân vật cử động, con trỏ chuột) làm vùng phụ đề trông như đổi dù câu vẫn vậy:
-                // không báo câu mới, mà thêm phiếu cho câu đang hiện và chọn lại trên cả kho.
-                if (SentenceComparer.AreSameSentence(read.Text, lastSentence))
-                {
-                    AddVotes(sentenceVotes, candidates);
-                    string best = OcrVote.SelectMedian(sentenceVotes);
-                    double gain = OcrVote.AverageDistance(lastSentence, sentenceVotes) - OcrVote.AverageDistance(best, sentenceVotes);
-                    if (gain < MinCorrectionGain || CountCopies(sentenceVotes, best) < MinCorrectionCopies)
-                    {
-                        _logger.LogDebug("Trùng câu đang hiện, giữ nguyên ({Count} phiếu)", sentenceVotes.Count);
-                        continue;
-                    }
-
-                    lastSentence = best;
-                    _logger.LogInformation("Sửa phụ đề: \"{Text}\" ({Count} phiếu)", best, sentenceVotes.Count);
-                    SentenceRead?.Invoke(read with { Text = best, IsCorrection = true });
-                    continue;
-                }
-
-                sentenceVotes.Clear();
-                AddVotes(sentenceVotes, candidates);
-                lastSentence = read.Text;
-                _logger.LogInformation("Đọc phụ đề: \"{Text}\" | OCR {OcrMs:F0} ms, trễ {LatencyMs:F0} ms",
-                    read.Text, read.OcrDuration.TotalMilliseconds, read.Latency.TotalMilliseconds);
-                SentenceRead?.Invoke(read);
-            }
-            else if (change == SubtitleChange.Cleared)
-            {
-                lastSentence = string.Empty;
-                sentenceVotes.Clear();
-                SubtitleCleared?.Invoke();
-            }
-
-        }
     }
 
-    private static (Frame Crop, TextMask Mask) CropAndMask(Frame frame, PixelRect area)
+    /// <summary>Chạy vòng chụp riêng chỉ để đọc phụ đề (công cụ phát lại video). App dùng <see cref="ReaderLoop"/> chung.</summary>
+    public Task RunAsync(Func<CancellationToken, Task<Frame?>> captureWindow, Region region, CancellationToken cancellationToken)
+    {
+        Start(region);
+        return ReaderLoop.RunAsync(captureWindow, [this], _logger, cancellationToken);
+    }
+
+    public async Task ProcessAsync(Frame frame, CancellationToken cancellationToken)
+    {
+        if (_region is null)
+            return;
+
+        var area = _region.ToPixelRect(frame.Width, frame.Height);
+        var (crop, mask) = await Task.Run(() => CropAndMask(frame, area), cancellationToken);
+        var change = _gate.Update(mask, frame.CapturedAt);
+        _logger.LogTrace("Khung {Time:HH:mm:ss.fff}: lệch {Ratio:F2}, ô chữ {Cells}, {Change}",
+            frame.CapturedAt, _gate.LastChangeRatio, mask.TextCellCount, change);
+
+        if (change == SubtitleChange.Changed)
+            _recentCrops.Clear();
+
+        if (_recentCrops.Count < MaxBufferedFrames)
+            _recentCrops.Add(crop);
+
+        if (change == SubtitleChange.Stable)
+        {
+            var (read, candidates) = await ReadSentenceAsync(_recentCrops, area, frame.Width, frame.Height, _gate.StillSince, cancellationToken);
+            if (read is null)
+                return;
+
+            // Nền sau phụ đề chuyển động (nhân vật cử động, con trỏ chuột) làm vùng phụ đề trông như đổi dù câu vẫn vậy:
+            // không báo câu mới, mà thêm phiếu cho câu đang hiện và chọn lại trên cả kho.
+            if (SentenceComparer.AreSameSentence(read.Text, _lastSentence))
+            {
+                AddVotes(_sentenceVotes, candidates);
+                string best = OcrVote.SelectMedian(_sentenceVotes);
+                double gain = OcrVote.AverageDistance(_lastSentence, _sentenceVotes) - OcrVote.AverageDistance(best, _sentenceVotes);
+                if (gain < MinCorrectionGain || CountCopies(_sentenceVotes, best) < MinCorrectionCopies)
+                {
+                    _logger.LogDebug("Trùng câu đang hiện, giữ nguyên ({Count} phiếu)", _sentenceVotes.Count);
+                    return;
+                }
+
+                _lastSentence = best;
+                _logger.LogInformation("Sửa phụ đề: \"{Text}\" ({Count} phiếu)", best, _sentenceVotes.Count);
+                SentenceRead?.Invoke(read with { Text = best, IsCorrection = true });
+                return;
+            }
+
+            _sentenceVotes.Clear();
+            AddVotes(_sentenceVotes, candidates);
+            _lastSentence = read.Text;
+            _logger.LogInformation("Đọc phụ đề: \"{Text}\" | OCR {OcrMs:F0} ms, trễ {LatencyMs:F0} ms",
+                read.Text, read.OcrDuration.TotalMilliseconds, read.Latency.TotalMilliseconds);
+            SentenceRead?.Invoke(read);
+        }
+        else if (change == SubtitleChange.Cleared)
+        {
+            _lastSentence = string.Empty;
+            _sentenceVotes.Clear();
+            SubtitleCleared?.Invoke();
+        }
+    }
+    internal static (Frame Crop, TextMask Mask) CropAndMask(Frame frame, PixelRect area, int minTextLuma = TextMask.DefaultMinTextLuma)
     {
         var crop = FrameConverter.Crop(frame, area);
-        return (crop, TextMask.FromFrame(crop));
+        return (crop, TextMask.FromFrame(crop, minTextLuma));
     }
 
     private static int CountCopies(List<string> votes, string text)

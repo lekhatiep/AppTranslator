@@ -158,9 +158,14 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 ## Stage 7 – Lựa chọn hội thoại (M) · FR-05 · 🟡 đang làm (nhánh `stage_7`)
 - [x] `ChoiceParser`: tách theo hàng (dùng chung cách gộp hàng của `SentenceAssembler`), dòng bắt đầu bằng số = lựa chọn mới, bỏ ▶/rác OCR trước số, chấp nhận "1." "1)" "1,"; dòng không số = phần xuống dòng của lựa chọn trên (8 test). 8 ảnh mẫu (PaddleOCR): đúng số lựa chọn và số thứ tự ở cả 8
 - [x] `SelectionMarker`: OCR không đọc ra ▶ và màu chữ không dùng được (ảnh 180920: đang chọn vàng, còn lại trắng; ảnh 224431: cả hai vàng) → đếm điểm ảnh vàng trong dải bên trái mỗi dòng, dòng nhiều nhất (≥15 điểm, gấp đôi dòng nhì) là dòng đang chọn (4 test). 8 ảnh mẫu: đều nhận ▶ ở lựa chọn 1 (đúng). *Chưa có ảnh thật ▶ ở lựa chọn 2/3*
-- [ ] Vòng đọc lựa chọn trong app (chờ `stage_6` vào `development`): PaddleOCR khi vùng đổi và đứng yên; dò ▶ mỗi khung để bám khi người chơi di chuyển, không OCR lại
-- [ ] Dịch từng lựa chọn (cache theo từng câu), hiển thị lại số thứ tự, ▶ và màu nổi bật cho lựa chọn đang chọn
-- [ ] Không dịch lại khi chỉ di chuyển lựa chọn
+- [x] `ReaderLoop`: một vòng chụp chung 10 khung/giây đưa khung cho mọi bộ đọc (trước mỗi bộ đọc tự chụp → chụp 2 lần/khung). `SubtitleReader` thành bộ xử lý khung; video và 14 ảnh mẫu cho kết quả như cũ
+- [x] `ChoiceReader`: vùng lựa chọn đổi rồi đứng yên 300 ms → PaddleOCR (chạy nền) → `ChoiceParser` → ▶; mỗi khung dò lại ▶ (không OCR); đọc lại ra cùng các câu thì chỉ cập nhật ▶. Mặt nạ vùng lựa chọn dùng ngưỡng sáng 150 (chữ lựa chọn sáng nhất ~165; ngưỡng 200 của phụ đề làm sót 4/8 bảng ở cảnh tối). Bỏ dòng không số trước lựa chọn đầu (ảnh 224124 nền sáng ra ". N")
+- [x] Phát lại 14 ảnh mẫu qua vòng chung (phụ đề + lựa chọn): phụ đề 14/14, lựa chọn 8/8 bảng đúng số lựa chọn và ▶, không bảng giả; PaddleOCR 80–370 ms/bảng; CPU 1.9% máy
+- [x] Dịch từng lựa chọn song song, bộ dịch riêng (không chen vào ngữ cảnh phụ đề), cache chung theo từng câu; lưu lịch sử (loại Choices, không tính số đo độ trễ)
+- [x] Overlay: bảng lựa chọn đè từ dòng lựa chọn đầu (chừa chỗ che ▶ gốc) tới mép phải vùng, mỗi dòng "▶ 1. bản dịch", dòng đang chọn tô vàng; lỗi dịch hiện ⚠ ở dòng đầu kèm chữ gốc. Cửa sổ chính có ô "Lựa chọn hội thoại (Anh → Việt)"
+- [x] Không dịch lại khi chỉ di chuyển lựa chọn (chỉ vẽ lại ▶ và màu)
+- [ ] Chạy thử trên video thật; ảnh thật ▶ ở lựa chọn 2/3
+- Lưu ý: mỗi bảng tốn 1 lượt gọi Gemini cho mỗi lựa chọn chưa có trong cache (key free ~15 lượt/phút)
 ## Stage 8 – Chọn vùng thủ công (M, best effort) · FR-07
 - [ ] Phím tắt → khoanh vùng → OCR + dịch một lần → popup; tắt bằng phím tắt hoặc khi vùng đổi
 

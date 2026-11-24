@@ -3,14 +3,15 @@ using AppTranslator.Core.Abstractions;
 
 namespace AppTranslator.Core.Pipeline;
 
-/// <param name="Number">Số thứ tự trên màn hình (null nếu OCR không đọc ra số).</param>
+/// <param name="Number">Số thứ tự trên màn hình.</param>
 /// <param name="Text">Nội dung lựa chọn, đã bỏ số thứ tự và ký hiệu ▶.</param>
 /// <param name="Bounds">Khung dòng chữ trong ảnh vùng lựa chọn (pixel), gồm cả số thứ tự.</param>
-public sealed record DialogueChoice(int? Number, string Text, PixelRect Bounds);
+public sealed record DialogueChoice(int Number, string Text, PixelRect Bounds);
 
 /// <summary>
 /// FR-05: tách các lựa chọn hội thoại từ kết quả OCR vùng lựa chọn. Mỗi lựa chọn bắt đầu bằng "số." ("1. Take it…");
 /// dòng không có số là phần xuống dòng của lựa chọn ngay trên. Ký hiệu ▶ hay rác OCR trước số bị bỏ.
+/// Không có dòng nào có số thì coi là không có bảng lựa chọn.
 /// </summary>
 public static partial class ChoiceParser
 {
@@ -31,12 +32,10 @@ public static partial class ChoiceParser
             else if (choices.Count > 0)
             {
                 var previous = choices[^1];
-                choices[^1] = previous with { Text = $"{previous.Text} {text}", Bounds = Union(previous.Bounds, row.Bounds) };
+                choices[^1] = previous with { Text = $"{previous.Text} {text}", Bounds = previous.Bounds.Union(row.Bounds) };
             }
-            else
-            {
-                choices.Add(new DialogueChoice(null, text, row.Bounds));
-            }
+
+            // Dòng không số đứng trước lựa chọn đầu tiên: rác OCR từ nền (lựa chọn của game luôn có số), bỏ qua.
         }
 
         return choices;
@@ -49,14 +48,5 @@ public static partial class ChoiceParser
     private static string NormalizeSpaces(string text)
     {
         return string.Join(" ", text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-    }
-
-    private static PixelRect Union(PixelRect first, PixelRect second)
-    {
-        int left = Math.Min(first.X, second.X);
-        int top = Math.Min(first.Y, second.Y);
-        int right = Math.Max(first.X + first.Width, second.X + second.Width);
-        int bottom = Math.Max(first.Y + first.Height, second.Y + second.Height);
-        return new PixelRect(left, top, right - left, bottom - top);
     }
 }

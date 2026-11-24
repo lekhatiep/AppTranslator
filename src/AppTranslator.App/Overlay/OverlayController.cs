@@ -57,15 +57,10 @@ public sealed class OverlayController : IDisposable
         _tracker.SetTarget(windowHandle);
     }
 
-
-    /// <param name="texts">Anchor: khung chữ gốc theo tỉ lệ cửa sổ (null nếu không biết).</param>
-    public void ShowTexts(IReadOnlyList<(Region Region, string Text, LayoutRect? Anchor)> texts, OverlaySettings settings)
+    /// <summary>Thay toàn bộ chữ trên overlay (phụ đề, lựa chọn). Danh sách rỗng thì ẩn hết.</summary>
+    public void ShowTexts(IReadOnlyList<OverlayText> texts, OverlaySettings settings)
     {
-        var overlayTexts = new List<OverlayText>();
-        foreach (var (region, text, anchor) in texts)
-            overlayTexts.Add(new OverlayText(region, text, anchor));
-
-        _texts = overlayTexts;
+        _texts = texts;
         _style = new OverlayStyle(settings.FontSize, CreateBackground(settings));
         _window?.SetContent(_texts, _style);
     }

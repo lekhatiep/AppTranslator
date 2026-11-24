@@ -56,6 +56,26 @@ public class TextMaskTests
     }
 
     [Fact]
+    public void LowerThreshold_CountsDimYellowText()
+    {
+        // Chữ lựa chọn vàng sẫm (luma ~165): không tính ở ngưỡng phụ đề 200, có tính ở ngưỡng 150.
+        var frame = TestFrames.Dark(400, 80);
+        for (int y = 24; y < 56; y++)
+        {
+            for (int x = 40; x < 200; x++)
+            {
+                int offset = y * frame.Stride + x * 4;
+                frame.Pixels[offset] = 40;
+                frame.Pixels[offset + 1] = 175;
+                frame.Pixels[offset + 2] = 220;
+            }
+        }
+
+        Assert.Equal(0, TextMask.FromFrame(frame).TextCellCount);
+        Assert.Equal(20 * 4, TextMask.FromFrame(frame, minTextLuma: 150).TextCellCount);
+    }
+
+    [Fact]
     public void DifferentSize_FullChange()
     {
         var first = TextMask.FromFrame(TestFrames.Dark(400, 80));

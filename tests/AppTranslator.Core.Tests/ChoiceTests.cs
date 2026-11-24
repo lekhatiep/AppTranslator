@@ -72,11 +72,23 @@ public class ChoiceParserTests
     }
 
     [Fact]
-    public void NoNumberAtAll_KeptAsUnnumberedChoice()
+    public void NoNumberAtAll_NoChoices()
     {
-        var choice = Assert.Single(ChoiceParser.Parse([new OcrLine("Leave.", new PixelRect(40, 100, 100, 36), null)]));
+        // Ảnh 224124: nền sáng trong vùng lựa chọn bị OCR thành ". N".
+        Assert.Empty(ChoiceParser.Parse([new OcrLine(". N", new PixelRect(40, 100, 100, 36), null)]));
+    }
 
-        Assert.Null(choice.Number);
+    [Fact]
+    public void JunkBeforeFirstNumberedLine_Ignored()
+    {
+        OcrLine[] lines =
+        [
+            new("ii ~", new PixelRect(300, 20, 60, 30), null),
+            new("1. Leave.", new PixelRect(43, 100, 120, 36), null),
+        ];
+
+        var choice = Assert.Single(ChoiceParser.Parse(lines));
+
         Assert.Equal("Leave.", choice.Text);
     }
 

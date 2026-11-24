@@ -50,6 +50,7 @@ public partial class App : Application
                 services.AddSingleton<OverlayController>();
                 services.AddSingleton<HotkeyService>();
                 services.AddSingleton<SubtitleReader>();
+                services.AddSingleton<ChoiceReader>();
                 services.AddSingleton<SecretStore>();
                 services.AddSingleton(_ => new SqliteTranslationCache(paths.DatabaseFile));
                 services.AddSingleton(_ => new SqliteHistoryStore(paths.DatabaseFile));

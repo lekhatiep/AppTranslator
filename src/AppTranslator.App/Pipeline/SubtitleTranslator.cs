@@ -12,6 +12,9 @@ namespace AppTranslator.App.Pipeline;
 /// <param name="Error">Lỗi dịch (key, quota, mạng...) để báo cho người chơi.</param>
 public sealed record SubtitleTranslation(string Source, string? Translation, bool FromCache, TimeSpan TranslateDuration, TranslationException? Error);
 
+/// <param name="Lines">Theo đúng thứ tự lựa chọn; phần tử null khi lựa chọn đó trông như chữ rác (không dịch).</param>
+public sealed record ChoicesTranslation(IReadOnlyList<TranslatedLine?> Lines, TranslationException? Error);
+
 /// <summary>
 /// Nối vòng đọc phụ đề với bước dịch: chọn bộ dịch theo cài đặt, bỏ qua lần sửa câu nhỏ, và chỉ trả kết quả của câu
 /// mới nhất (câu cũ dịch xong muộn không được đè lên câu mới). Gọi trên luồng UI.
@@ -29,7 +32,10 @@ public sealed class SubtitleTranslator
     private readonly HttpClient _httpClient;
     private readonly ILogger<SubtitleTranslator> _logger;
     private TranslationService _service;
+    // Lựa chọn dùng bộ dịch riêng để không chen vào ngữ cảnh câu thoại của phụ đề; dùng chung cache.
+    private TranslationService _choiceService;
     private int _sequence;
+    private int _choiceSequence;
     private string _lastTranslatedSource = string.Empty;
 
     public SubtitleTranslator(SecretStore secrets, SqliteTranslationCache cache, HttpClient httpClient, ILogger<SubtitleTranslator> logger)
@@ -39,6 +45,7 @@ public sealed class SubtitleTranslator
         _httpClient = httpClient;
         _logger = logger;
         _service = new TranslationService(new MockTranslator(), cache: null);
+        _choiceService = new TranslationService(new MockTranslator(), cache: null);
     }
 
     public void UseProvider(string provider, string geminiModel)
@@ -47,14 +54,17 @@ public sealed class SubtitleTranslator
         {
             var gemini = new GeminiTranslator(_httpClient, () => _secrets.Get(SecretStore.GeminiApiKey), geminiModel);
             _service = new TranslationService(gemini, _cache);
+            _choiceService = new TranslationService(gemini, _cache);
         }
         else
         {
             // Bản dịch giả không ghi vào cache, để không lẫn với bản dịch thật.
             _service = new TranslationService(new MockTranslator(), cache: null);
+            _choiceService = new TranslationService(new MockTranslator(), cache: null);
         }
 
         Reset();
+        ResetChoices();
         _logger.LogInformation("Bộ dịch: {Provider} ({Model})", provider, provider == GeminiTranslator.ProviderName ? geminiModel : "-");
     }
 
@@ -100,6 +110,42 @@ public sealed class SubtitleTranslator
                 return null;
 
             return new SubtitleTranslation(read.Text, null, false, TimeSpan.Zero, exception);
+        }
+    }
+
+    /// <summary>Bảng lựa chọn tắt hoặc đổi nguồn: bỏ kết quả của bộ lựa chọn đang dịch dở.</summary>
+    public void ResetChoices()
+    {
+        _choiceSequence++;
+    }
+
+    /// <summary>
+    /// Dịch từng lựa chọn (cache theo từng câu, nên bảng lựa chọn lặp lại hiện ngay). Gọi song song để cả bảng chỉ chờ bằng
+    /// câu chậm nhất. Trả về null nếu đã có bảng lựa chọn mới hơn trong lúc dịch.
+    /// </summary>
+    public async Task<ChoicesTranslation?> TranslateChoicesAsync(GameProfile profile, IReadOnlyList<string> texts, CancellationToken cancellationToken = default)
+    {
+        int sequence = ++_choiceSequence;
+        var tasks = new List<Task<TranslatedLine?>>();
+        foreach (string text in texts)
+            tasks.Add(_choiceService.TranslateAsync(profile, text, cancellationToken));
+
+        try
+        {
+            var lines = await Task.WhenAll(tasks);
+            if (sequence != _choiceSequence)
+                return null;
+
+            _logger.LogInformation("Dịch lựa chọn: {Translations}", string.Join(" | ", lines.Select(line => line?.TranslatedText ?? "(không dịch)")));
+            return new ChoicesTranslation(lines, null);
+        }
+        catch (TranslationException exception)
+        {
+            _logger.LogWarning("Dịch lựa chọn lỗi ({Kind}): {Message}", exception.Kind, exception.Message);
+            if (sequence != _choiceSequence)
+                return null;
+
+            return new ChoicesTranslation([], exception);
         }
     }
 
