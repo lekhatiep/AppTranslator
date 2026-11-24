@@ -6,6 +6,16 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AppTranslator.Core\AppTranslator.Core.csproj" />
+    <ProjectReference Include="..\AppTranslator.Imaging\AppTranslator.Imaging.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="RapidOcrNet" Version="4.2.0" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <!-- Model PP-OCRv5 nằm trong gói RapidOcrNet; khai báo ở đây để chép sang mọi project tham chiếu Ocr (App, Benchmark). -->
+  <ItemGroup>
+    <None Include="$(PkgRapidOcrNet)\models\v5\*.*" Link="models\v5\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" Visible="false" />
   </ItemGroup>
 
 </Project>

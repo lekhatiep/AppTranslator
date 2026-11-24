@@ -11,6 +11,7 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | 2026-11-22 | Chụp màn hình: làm **cả hai** engine sau `IScreenCapture` | (a) Windows.Graphics.Capture: chụp đúng cửa sổ, nhưng trên Win10 có viền vàng. (b) DXGI Desktop Duplication: không viền, overlay loại khỏi ảnh bằng `WDA_EXCLUDEFROMCAPTURE`, không chụp được khi cửa sổ bị che. Chọn engine trong cài đặt |
 | 2026-11-22 | Chưa có key Gemini | Stage 5 làm trước bằng `MockTranslator`, khi có key thì nối Gemini thật |
 | 2026-11-23 | Nhánh: mỗi stage tách `stage_<N>` từ `development` | |
+| 2026-11-23 | Gate 1 tạm: phụ đề Windows OCR + Sharpen (83.2%), lựa chọn PaddleOCR v5 kèm gói (98.2%) | Đo trên 14 ảnh video YouTube. Phụ đề chưa đạt 95% (AC-01): thử đọc nhiều khung lấy đa số + ghép 2 engine ở Stage 4. Chốt lại với bộ ảnh Chiaki |
 | 2026-11-23 | Overlay hai chế độ theo engine (hướng 1) | WGC: click-through hoàn toàn. DXGI: không lọt vào ảnh chụp, click trúng ô chữ bị overlay nhận (không tới game), click chỗ khác bình thường. Click-through cho DXGI để giai đoạn bảo trì |
 
 ## Đang chờ từ khách / người dùng
@@ -74,14 +75,34 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [ ] Tay cầm với Chiaki khi có (AC-06)
 - Đã đo: overlay WPF trên Win10 không thể vừa click-through vừa `WDA_EXCLUDEFROMCAPTURE` (`AllowsTransparency` → lỗi 8; thêm WS_EX_LAYERED vào cửa sổ thường → `SetLayeredWindowAttributes` lỗi 87, mất click-through)
 
-## Stage 3 – Benchmark OCR (M) · Gate 1
-- [ ] Tạo project tools/AppTranslator.Benchmark và tests/AppTranslator.Ocr.Tests
-- [ ] Tool console: đọc ảnh + `ground-truth.csv`, chạy engine × tiền xử lý, xuất CSV (độ chính xác theo từ, ms)
-- [ ] `WindowsOcrEngine` (kiểm tra gói ngôn ngữ English OCR, báo nếu thiếu)
-- [ ] `PaddleOcrEngine` (ONNX Runtime, DirectML)
-- [ ] (Tùy chọn) Tesseract làm mốc so sánh
-- [ ] Tiền xử lý: tách màu trắng/vàng (HSV), phóng to 2–3×, nhị phân hóa, lọc viền
-- [ ] **Gate 1:** chốt engine + tiền xử lý, ghi kết quả vào mục “Quyết định đã chốt”
+## Stage 3 – Benchmark OCR (M) · Gate 1 · ✅ xong 2026-11-23 (Gate 1 tạm, chốt lại với ảnh Chiaki)
+- [x] `samples/witcher3/ground-truth.csv` (16 dòng, 10 ảnh video, người dùng đã soát 2026-11-23) + README quy ước chép
+- [x] `TextAccuracy` (tỉ lệ từ đúng theo Levenshtein, chế độ chặt/lỏng) + 10 unit test
+- [x] Imaging: `FrameConverter` (Frame↔Mat, đọc/ghi/cắt/thu nhỏ), `TextPreprocessor` (None, Upscale2x, TextColorMask2x)
+- [x] Ocr: `WindowsOcrEngine`, `RapidOcrEngine` (PaddleOCR PP-OCRv5 Latin qua RapidOcrNet 4.2.0, ONNX Runtime CPU; model chép theo project tham chiếu)
+- [x] tools/AppTranslator.Benchmark: engine × tiền xử lý × dòng, xuất `results/<thời gian>/results.csv` + ảnh sau tiền xử lý, in bảng tổng hợp
+- [ ] tests/AppTranslator.Ocr.Tests: dời đến khi có ảnh mẫu đưa vào git được (ảnh hiện không lên git)
+- Kết quả lần 1 (2026-11-23, vùng hồ sơ hiện tại, “chặt” = so đúng dấu câu):
+
+  | Engine | Tiền xử lý | Phụ đề | Lựa chọn | ms/vùng |
+  |---|---|---|---|---|
+  | WindowsOcr | None | 80.1% | 90.9% | ~7 |
+  | WindowsOcr | Upscale2x | 78.3% | 80.9% | ~20 |
+  | WindowsOcr | TextColorMask2x | 71.5% | 77.3% | ~15 |
+  | PaddleOcrV5 | None | 47.0% | 97.5% | ~140 |
+  | PaddleOcrV5 | Upscale2x | 62.5% | 94.6% | ~2000 |
+  | PaddleOcrV5 | TextColorMask2x | 67.7% | 88.4% | ~300 |
+
+  - 2/10 phụ đề sai do **vùng**, không do OCR: 181007 mất dòng 2 (ảnh cao 1056 nên tỉ lệ lệch), 181336 phụ đề lúc chơi nằm cao hơn vùng (chỉ đọc được HUD)
+  - Lỗi OCR còn lại: dính chữ (“ouryoung”), dấu câu rác; Paddle + tách màu đọc nền thành ký tự rác
+  - RapidOcrNet mặc định thu cạnh dài về 1024px → phụ đề chỉ 15%; đã nâng lên 4096
+- [x] Lần 2: thêm 4 ảnh toàn màn hình (14 ảnh, 22 dòng), vùng phụ đề cao hơn (y 866–1034): Windows 81.3% / 89.4%, Paddle 79.4% / 98.2% (phụ đề / lựa chọn). Lỗi phổ biến nhất: mất dấu cách giữa từ
+- [x] Lần 3: thử thêm tiền xử lý và model Paddle lớn
+  - Tiền xử lý: **Sharpen** tốt nhất cho Windows (phụ đề 83.2%, 9/14 câu đúng trọn); Grayscale ≈ không đổi, Upscale1.5x kém hơn → bỏ, chỉ giữ Sharpen
+  - Model Paddle (en_rec mobile, rec/det server): đều kém hơn bản kèm gói (3–38% phụ đề); rec server là model Trung+Anh nên bỏ dấu cách giữa từ, chậm 3–15 s/vùng → đã xóa model và code thử nghiệm (theo yêu cầu: dưới 95% thì xóa)
+- [ ] Vùng phụ đề vẫn chưa bắt phụ đề lúc chơi (mép trên 866, phụ đề lúc chơi ở 822–850)
+- [ ] (Tùy chọn) Tesseract làm mốc so sánh; DirectML cho Paddle nếu cần tốc độ
+- [x] **Gate 1 (tạm, 2026-11-23):** phụ đề = Windows OCR + Sharpen; lựa chọn = PaddleOCR v5 (kèm gói), giữ nguyên ảnh. Chốt lại khi có ảnh Chiaki thật
 
 ## Stage 4 – Nhận diện phụ đề (L) · FR-04
 - [ ] `ChangeDetector` (so mặt nạ chữ giữa các khung)
@@ -137,3 +158,4 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 | 2026-11-23 | Xong Stage 0, commit `ff25fd8` lên nhánh `stage_0` (origin: github.com/lekhatiep/AppTranslator) |
 | 2026-11-23 | Tạo `main` từ `stage_0`; Stage 1 code xong trên nhánh `stage_1`. Sửa deadlock WGC (FrameArrived chờ khóa khi WGC giữ khóa D3D) |
 | 2026-11-23 | Stage 1 commit `2b1586d`, merge vào `development`. Stage 2 xong, commit trên `stage_2` |
+| 2026-11-23 | Stage 2 merge vào `development`. Stage 3 xong (Gate 1 tạm) trên `stage_3`; đã xóa model Paddle thử nghiệm và kết quả benchmark cũ |
