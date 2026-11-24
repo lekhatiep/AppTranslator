@@ -20,6 +20,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\AppTranslator.Core\AppTranslator.Core.csproj" />
     <ProjectReference Include="..\..\src\AppTranslator.Storage\AppTranslator.Storage.csproj" />
+    <ProjectReference Include="..\..\src\AppTranslator.Translation\AppTranslator.Translation.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using AppTranslator.App.Overlay;
 using AppTranslator.App.Pipeline;
@@ -49,6 +50,11 @@ public partial class App : Application
                 services.AddSingleton<OverlayController>();
                 services.AddSingleton<HotkeyService>();
                 services.AddSingleton<SubtitleReader>();
+                services.AddSingleton<SecretStore>();
+                services.AddSingleton(_ => new SqliteTranslationCache(paths.DatabaseFile));
+                // Một HttpClient dùng suốt đời app (tạo mới mỗi lần gọi sẽ cạn socket).
+                services.AddSingleton(_ => new HttpClient());
+                services.AddSingleton<SubtitleTranslator>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainWindow>();
             })
