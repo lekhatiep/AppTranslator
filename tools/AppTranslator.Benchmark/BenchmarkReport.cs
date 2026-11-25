@@ -66,6 +66,28 @@ internal static class BenchmarkReport
         }
     }
 
+    /// <summary>AC-01 / AC-03 theo đúng cấu hình app đang dùng (Gate 1): phụ đề Windows OCR + làm nét, lựa chọn PaddleOCR.</summary>
+    public static void PrintAcceptance(IReadOnlyList<BenchmarkResult> results)
+    {
+        Console.WriteLine();
+        PrintCriterion(results, "AC-01 OCR phụ đề", "WindowsOcr", PreprocessMode.Sharpen, RegionType.Subtitle, 0.95);
+        PrintCriterion(results, "AC-03 OCR lựa chọn", "PaddleOcrV5", PreprocessMode.None, RegionType.Choices, 0.90);
+    }
+
+    private static void PrintCriterion(IReadOnlyList<BenchmarkResult> results, string name, string engine, PreprocessMode mode, RegionType region, double target)
+    {
+        var matching = results.Where(r => r.Engine == engine && r.Mode == mode && r.Row.Region == region).ToList();
+        if (matching.Count == 0)
+        {
+            Console.WriteLine($"{name}: không có kết quả ({engine} + {mode})");
+            return;
+        }
+
+        double accuracy = matching.Average(r => r.StrictAccuracy);
+        string verdict = accuracy >= target ? "ĐẠT" : "CHƯA ĐẠT";
+        Console.WriteLine($"{name} ({engine} + {mode}, {matching.Count} câu): {accuracy:P1} — mục tiêu ≥ {target:P0} → {verdict}");
+    }
+
     private static string Format(double value)
     {
         return value.ToString("F3", CultureInfo.InvariantCulture);

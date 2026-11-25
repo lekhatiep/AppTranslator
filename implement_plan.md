@@ -180,7 +180,10 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] UI cài đặt: nút "Cài đặt" → cỡ chữ, màu nền #RRGGBB, độ mờ (thanh trượt 0.3–1), 3 phím tắt, model Gemini; kiểm bằng `SettingsValidator` (khoảng giá trị, mã màu, phím tắt hợp lệ và không trùng; 11 test); lưu xong áp dụng ngay (đăng ký lại phím tắt, đổi model, vẽ lại overlay). Key, bộ dịch, engine chụp vẫn ở cửa sổ chính
 - [x] UI hồ sơ game: nút "Sửa" / "Tạo mới" cạnh ô hồ sơ → tên game, gợi ý tiêu đề cửa sổ, văn phong, xưng hô, số câu ngữ cảnh, tên riêng (mỗi dòng một tên), thuật ngữ (mỗi dòng "Anh = Việt", dòng sai báo số dòng). `ProfileText` (9 test): đọc/ghi các ô, mã hồ sơ mới từ tên game không trùng. Lưu thì tăng Version (cache cũ của game không dùng lại)
 - [ ] Hồ sơ Witcher 3 thật *(chờ khách: văn phong, xưng hô theo nhân vật, thuật ngữ; gợi ý thêm "Ghouls and Alghouls" vì Gemini dịch mỗi lần một kiểu)*
-- [ ] Đo AC-01..AC-05 bằng Benchmark, xuất bảng cho khách chấm; kiểm AC-06 thủ công
+- [x] Benchmark: lựa chọn tách bằng `ChoiceParser` như app; in dòng AC-01/AC-03 theo cấu hình app. Vùng chữ ưu tiên `samples/witcher3/profiles/witcher3.json` (khớp khung hình bộ mẫu): vùng của app chọn trên cửa sổ Chrome 1920×1040 kéo tới đáy, cắt lẹm taskbar trong ảnh mẫu toàn màn hình → phụ đề tụt giả còn 58.8%
+- [x] Kết quả 25/11 (16 ảnh, 24 dòng): **AC-01 phụ đề 82.6% — chưa đạt 95%** (Ensemble 91%, xem bảo trì); **AC-03 lựa chọn 98.5% — đạt**
+- [x] `tools/AppTranslator.Acceptance`: `export` xuất câu đã dịch (không trùng) ra CSV có cột `danh_gia` cho khách điền Đạt/Sai + in AC-05 (chung và riêng câu gọi AI); `score` tính AC-02/AC-04 (`TranslationReview`, 10 test). Lịch sử 24–25/11: AC-05 p90 1495 ms nhưng 59/91 câu từ cache; riêng câu gọi AI p90 2075 ms (Gemini free)
+- [ ] Khách chấm bảng dịch (AC-02, AC-04) trên bộ câu Chiaki; kiểm AC-06 thủ công (Chiaki Borderless, tay cầm)
 - [ ] `dotnet publish` self-contained win-x64 → zip + README cài đặt
 - [ ] **Gate 3:** đạt AC-01..AC-06
 

@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTranslator.VideoReplay",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTranslator.TranslateCheck", "tools\AppTranslator.TranslateCheck\AppTranslator.TranslateCheck.csproj", "{F198AE1E-5497-47E4-B0A6-683CEE36D7B3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AppTranslator.Acceptance", "tools\AppTranslator.Acceptance\AppTranslator.Acceptance.csproj", "{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -171,6 +173,18 @@ Global
 		{F198AE1E-5497-47E4-B0A6-683CEE36D7B3}.Release|x64.Build.0 = Release|Any CPU
 		{F198AE1E-5497-47E4-B0A6-683CEE36D7B3}.Release|x86.ActiveCfg = Release|Any CPU
 		{F198AE1E-5497-47E4-B0A6-683CEE36D7B3}.Release|x86.Build.0 = Release|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Debug|x64.Build.0 = Debug|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Debug|x86.Build.0 = Debug|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Release|x64.ActiveCfg = Release|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Release|x64.Build.0 = Release|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Release|x86.ActiveCfg = Release|Any CPU
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -187,5 +201,6 @@ Global
 		{946BA2FD-946E-442B-8BBB-A621DDF6A9AA} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{3B00EBB6-FA4F-4C8A-B54A-63FB558A9FB0} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 		{F198AE1E-5497-47E4-B0A6-683CEE36D7B3} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
+		{05AE3D36-5DCA-4620-A91D-E9F73BDC981A} = {07C2787E-EAC7-C090-1BA3-A61EC2A24D84}
 	EndGlobalSection
 EndGlobal

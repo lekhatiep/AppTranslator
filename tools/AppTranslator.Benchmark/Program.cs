@@ -10,13 +10,16 @@ using AppTranslator.Storage;
 
 // Benchmark OCR (Stage 3, Gate 1): chạy mọi engine × cách tiền xử lý trên bộ ảnh mẫu, so với ground-truth.csv.
 // Cách dùng: AppTranslator.Benchmark [thư mục mẫu = samples/witcher3] [id hồ sơ = witcher3]
-// Vùng chữ lấy từ hồ sơ game trong %AppData%\AppTranslator\profiles (giống app).
+// Vùng chữ: ưu tiên hồ sơ đi kèm bộ mẫu (<thư mục mẫu>/profiles/<id>.json, khớp khung hình của ảnh mẫu); không có thì
+// lấy hồ sơ của app trong %AppData%\AppTranslator\profiles. Vùng của app chọn trên cửa sổ đang chơi có thể không khớp ảnh
+// mẫu chụp kiểu khác (vd ảnh toàn màn hình có taskbar) và làm điểm sai lệch.
 
 string samplesDirectory = args.Length > 0 ? args[0] : Path.Combine("samples", "witcher3");
 string profileId = args.Length > 1 ? args[1] : "witcher3";
 
-var profile = new JsonProfileStore(AppPaths.Default).Get(profileId)
-    ?? throw new InvalidOperationException($"Không tìm thấy hồ sơ {profileId} trong {AppPaths.Default.ProfilesDirectory}");
+var profile = new JsonProfileStore(new AppPaths(samplesDirectory)).Get(profileId)
+    ?? new JsonProfileStore(AppPaths.Default).Get(profileId)
+    ?? throw new InvalidOperationException($"Không tìm thấy hồ sơ {profileId} trong {samplesDirectory}/profiles hay {AppPaths.Default.ProfilesDirectory}");
 var rows = GroundTruth.Load(Path.Combine(samplesDirectory, "ground-truth.csv"));
 string outputDirectory = Path.Combine(samplesDirectory, "results", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
 Directory.CreateDirectory(outputDirectory);
@@ -55,6 +58,7 @@ results.AddRange(BuildEnsembleResults(results));
 
 BenchmarkReport.WriteCsv(results, Path.Combine(outputDirectory, "results.csv"));
 BenchmarkReport.PrintSummary(results);
+BenchmarkReport.PrintAcceptance(results);
 
 foreach (var engine in engines)
     (engine as IDisposable)?.Dispose();
@@ -167,15 +171,16 @@ List<BenchmarkResult> BuildEnsembleResults(List<BenchmarkResult> singleResults)
     return ensembleResults;
 }
 
-// Phụ đề đi qua SentenceAssembler giống app (ghép dòng, bỏ chữ HUD); lựa chọn hội thoại tách ở Stage 7 nên tạm nối thẳng.
+// Xử lý giống app: phụ đề qua SentenceAssembler (ghép dòng, bỏ chữ HUD); lựa chọn qua ChoiceParser rồi ghi lại "1. …"
+// để so với bản chép chuẩn ("1. …|2. …", dấu | tính như dấu cách).
 string ToText(OcrResult ocr, RegionType region, int cropWidth)
 {
     if (region == RegionType.Subtitle)
         return SentenceAssembler.Assemble(ocr.Lines, cropWidth);
 
-    var lineTexts = new List<string>();
-    foreach (var line in ocr.Lines)
-        lineTexts.Add(line.Text);
+    var choiceTexts = new List<string>();
+    foreach (var choice in ChoiceParser.Parse(ocr.Lines))
+        choiceTexts.Add($"{choice.Number}. {choice.Text}");
 
-    return string.Join(" ", lineTexts);
+    return string.Join(" | ", choiceTexts);
 }

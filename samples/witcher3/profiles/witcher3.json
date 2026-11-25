@@ -1,0 +1,9 @@
+{
+  "id": "witcher3",
+  "gameName": "The Witcher 3: Wild Hunt (bộ mẫu benchmark)",
+  "regions": [
+    { "type": "subtitle", "x": 0.0198, "y": 0.7424, "w": 0.9693, "h": 0.2326, "textColor": "white", "maxLines": 3 },
+    { "type": "choices", "x": 0.5969, "y": 0.6231, "w": 0.3995, "h": 0.1731, "textColor": "yellow", "selectedMarker": "▶" }
+  ],
+  "version": 1
+}
