@@ -104,6 +104,22 @@ public class SubtitleLayoutTests
     }
 
     [Fact]
+    public void AssembleAllRows_KeepsOffCenterRows_TopToBottom()
+    {
+        OcrLine[] lines =
+        [
+            new("for ghouls.", new PixelRect(20, 60, 150, 30), null),
+            new("Necrophage oil", new PixelRect(20, 10, 200, 30), null),
+            new("Increases damage", new PixelRect(20, 35, 220, 30), null),
+        ];
+
+        var block = SentenceAssembler.AssembleAllRows(lines);
+
+        Assert.Equal("Necrophage oil Increases damage for ghouls.", block.Text);
+        Assert.Equal(new PixelRect(20, 10, 220, 80), block.Bounds);
+    }
+
+    [Fact]
     public void AssembleWithBounds_NothingKept_NullBounds()
     {
         Assert.Null(SentenceAssembler.AssembleWithBounds([], 1860).Bounds);

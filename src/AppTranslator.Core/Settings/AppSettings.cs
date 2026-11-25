@@ -21,6 +21,8 @@ public sealed record HotkeySettings
 {
     public string ToggleTranslation { get; init; } = "Ctrl+Alt+T";
     public string SelectRegion { get; init; } = "Ctrl+Alt+R";
+    // FR-07: khoanh một vùng bất kỳ để dịch một lần; bấm lại để đóng bản dịch.
+    public string TranslateArea { get; init; } = "Ctrl+Alt+Q";
 }
 
 public sealed record OverlaySettings

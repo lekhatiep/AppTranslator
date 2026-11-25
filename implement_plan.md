@@ -167,8 +167,14 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Ảnh thật ▶ ở lựa chọn 2 (khách chụp 25/11, nền đá sáng): nhận đúng; điểm vàng bên trái 92 so với 0 ở dòng kia (ngưỡng 15 và gấp đôi). Thêm 2 ảnh `chrome-20261125-*` vào bộ mẫu + bản chép chuẩn vùng lựa chọn
 - [ ] Chạy thử trọn luồng lựa chọn trên video thật (dịch, overlay, di chuyển ▶)
 - Lưu ý: mỗi bảng tốn 1 lượt gọi Gemini cho mỗi lựa chọn chưa có trong cache (key free ~15 lượt/phút)
-## Stage 8 – Chọn vùng thủ công (M, best effort) · FR-07
-- [ ] Phím tắt → khoanh vùng → OCR + dịch một lần → popup; tắt bằng phím tắt hoặc khi vùng đổi
+## Stage 8 – Chọn vùng thủ công (M, best effort) · FR-07 · 🟡 đang làm (nhánh `stage_8`)
+- [x] Phím tắt mới `Ctrl+Alt+Q` (`hotkeys.translateArea` trong settings.json; giữ `Ctrl+Alt+R` cho vùng của hồ sơ)
+- [x] `AreaPickerWindow`: phủ ảnh chụp đứng yên lên đúng khung cửa sổ game, kéo chuột khoanh vùng, Esc hủy; kết quả theo pixel ảnh chụp
+- [x] `AreaTextReader`: PaddleOCR, giữ mọi dòng (`SentenceAssembler.AssembleAllRows`, không lọc chữ lệch tâm, 1 test)
+- [x] Dịch bằng bộ dịch riêng (không chen ngữ cảnh hội thoại), cache chung; lưu lịch sử loại "Manual"
+- [x] `TranslationPopupWindow`: bản dịch + câu gốc nhỏ; đặt dưới vùng (thiếu chỗ thì trên), kẹp trong cửa sổ game; không giành focus, loại khỏi ảnh chụp; hiện "Đang đọc chữ…/Đang dịch…" trước, lỗi hiện ⚠. Chạy thử: vị trí dưới/trên đúng, không giành focus
+- [x] Đóng popup: bấm lại phím tắt, click vào popup, hoặc chữ trong vùng đổi (kiểm 500 ms/lần, mặt nạ chữ lệch >0.3)
+- [ ] Chạy thử trên game/video thật (vật phẩm, nhật ký)
 
 ## Stage 9 – Hoàn thiện và nghiệm thu (M) · FR-08, FR-11 · Gate 3
 - [ ] UI cài đặt (key, nhà cung cấp, cỡ chữ, màu/độ mờ nền, phím tắt, engine chụp)

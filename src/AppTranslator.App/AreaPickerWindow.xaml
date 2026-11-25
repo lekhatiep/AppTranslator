@@ -1,0 +1,19 @@
+<Window x:Class="AppTranslator.App.AreaPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Khoanh vùng cần dịch"
+        WindowStyle="None" ResizeMode="NoResize" Topmost="True" ShowInTaskbar="False"
+        Background="Black" Cursor="Cross" KeyDown="OnKeyDown">
+    <Grid>
+        <Image x:Name="ScreenshotImage" Stretch="Fill" />
+        <Canvas x:Name="SelectionCanvas" Background="Transparent"
+                MouseLeftButtonDown="OnMouseDown" MouseMove="OnMouseMove" MouseLeftButtonUp="OnMouseUp">
+            <Rectangle x:Name="SelectionBox" Stroke="#FFF2C14E" StrokeThickness="2" Fill="#30F2C14E" Visibility="Collapsed" />
+        </Canvas>
+        <Border VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,16,0,0" Padding="12,6"
+                Background="#C0000000" CornerRadius="4" IsHitTestVisible="False">
+            <TextBlock Foreground="White" FontSize="16"
+                       Text="Kéo chuột để khoanh vùng chữ cần dịch · Esc để hủy" />
+        </Border>
+    </Grid>
+</Window>
