@@ -176,8 +176,8 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Đóng popup: bấm lại phím tắt, click vào popup, hoặc chữ trong vùng đổi (kiểm 500 ms/lần, mặt nạ chữ lệch >0.3)
 - [ ] Chạy thử trên game/video thật (vật phẩm, nhật ký)
 
-## Stage 9 – Hoàn thiện và nghiệm thu (M) · FR-08, FR-11 · Gate 3
-- [ ] UI cài đặt (key, nhà cung cấp, cỡ chữ, màu/độ mờ nền, phím tắt, engine chụp)
+## Stage 9 – Hoàn thiện và nghiệm thu (M) · FR-08, FR-11 · Gate 3 · 🟡 đang làm (nhánh `stage_9`)
+- [x] UI cài đặt: nút "Cài đặt" → cỡ chữ, màu nền #RRGGBB, độ mờ (thanh trượt 0.3–1), 3 phím tắt, model Gemini; kiểm bằng `SettingsValidator` (khoảng giá trị, mã màu, phím tắt hợp lệ và không trùng; 11 test); lưu xong áp dụng ngay (đăng ký lại phím tắt, đổi model, vẽ lại overlay). Key, bộ dịch, engine chụp vẫn ở cửa sổ chính
 - [ ] UI sửa hồ sơ game; hồ sơ Witcher 3 thật
 - [ ] Đo AC-01..AC-05 bằng Benchmark, xuất bảng cho khách chấm; kiểm AC-06 thủ công
 - [ ] `dotnet publish` self-contained win-x64 → zip + README cài đặt

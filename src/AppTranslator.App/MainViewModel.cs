@@ -434,7 +434,24 @@ public partial class MainViewModel : ObservableObject
         RegisterHotkey(_settings.Hotkeys.TranslateArea, () => _ = TranslateAreaAsync(), failures);
 
         if (failures.Count > 0)
-            Status = "Không đăng ký được phím tắt: " + string.Join(", ", failures) + ". Sửa trong settings.json rồi mở lại app.";
+            Status = "Không đăng ký được phím tắt: " + string.Join(", ", failures) + ". Đổi phím trong Cài đặt.";
+    }
+
+    [RelayCommand]
+    private void OpenSettings()
+    {
+        var window = new SettingsWindow(_settings) { Owner = Application.Current.MainWindow };
+        if (window.ShowDialog() != true || window.Result is null)
+            return;
+
+        SaveSettings(window.Result);
+        // Áp dụng ngay: phím tắt mới, model mới, kiểu chữ overlay mới.
+        _hotkeys.UnregisterAll();
+        Status = "Đã lưu cài đặt.";
+        RegisterHotkeys();
+        OnPropertyChanged(nameof(HotkeyHint));
+        _subtitleTranslator.UseProvider(SelectedTranslatorProvider, _settings.GeminiModel);
+        RefreshOverlay();
     }
 
     private void RegisterHotkey(string text, Action action, List<string> failures)

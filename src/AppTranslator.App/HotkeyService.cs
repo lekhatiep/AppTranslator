@@ -37,11 +37,18 @@ public sealed class HotkeyService : IDisposable
         return 0;
     }
 
-    public void Dispose()
+    /// <summary>Gỡ mọi phím tắt đã đăng ký (trước khi đăng ký lại theo cài đặt mới).</summary>
+    public void UnregisterAll()
     {
         foreach (int id in _actions.Keys)
             NativeMethods.UnregisterHotKey(_source.Handle, id);
 
+        _actions.Clear();
+    }
+
+    public void Dispose()
+    {
+        UnregisterAll();
         _source.RemoveHook(WndProc);
         _source.Dispose();
     }
