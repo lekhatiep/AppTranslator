@@ -164,7 +164,8 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Dịch từng lựa chọn song song, bộ dịch riêng (không chen vào ngữ cảnh phụ đề), cache chung theo từng câu; lưu lịch sử (loại Choices, không tính số đo độ trễ)
 - [x] Overlay: bảng lựa chọn đè từ dòng lựa chọn đầu (chừa chỗ che ▶ gốc) tới mép phải vùng, mỗi dòng "▶ 1. bản dịch", dòng đang chọn tô vàng; lỗi dịch hiện ⚠ ở dòng đầu kèm chữ gốc. Cửa sổ chính có ô "Lựa chọn hội thoại (Anh → Việt)"
 - [x] Không dịch lại khi chỉ di chuyển lựa chọn (chỉ vẽ lại ▶ và màu)
-- [ ] Chạy thử trên video thật; ảnh thật ▶ ở lựa chọn 2/3
+- [x] Ảnh thật ▶ ở lựa chọn 2 (khách chụp 25/11, nền đá sáng): nhận đúng; điểm vàng bên trái 92 so với 0 ở dòng kia (ngưỡng 15 và gấp đôi). Thêm 2 ảnh `chrome-20261125-*` vào bộ mẫu + bản chép chuẩn vùng lựa chọn
+- [ ] Chạy thử trọn luồng lựa chọn trên video thật (dịch, overlay, di chuyển ▶)
 - Lưu ý: mỗi bảng tốn 1 lượt gọi Gemini cho mỗi lựa chọn chưa có trong cache (key free ~15 lượt/phút)
 ## Stage 8 – Chọn vùng thủ công (M, best effort) · FR-07
 - [ ] Phím tắt → khoanh vùng → OCR + dịch một lần → popup; tắt bằng phím tắt hoặc khi vùng đổi
