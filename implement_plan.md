@@ -184,7 +184,8 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Kết quả 25/11 (16 ảnh, 24 dòng): **AC-01 phụ đề 82.6% — chưa đạt 95%** (Ensemble 91%, xem bảo trì); **AC-03 lựa chọn 98.5% — đạt**
 - [x] `tools/AppTranslator.Acceptance`: `export` xuất câu đã dịch (không trùng) ra CSV có cột `danh_gia` cho khách điền Đạt/Sai + in AC-05 (chung và riêng câu gọi AI); `score` tính AC-02/AC-04 (`TranslationReview`, 10 test). Lịch sử 24–25/11: AC-05 p90 1495 ms nhưng 59/91 câu từ cache; riêng câu gọi AI p90 2075 ms (Gemini free)
 - [ ] Khách chấm bảng dịch (AC-02, AC-04) trên bộ câu Chiaki; kiểm AC-06 thủ công (Chiaki Borderless, tay cầm)
-- [ ] `dotnet publish` self-contained win-x64 → zip + README cài đặt
+- [x] `scripts/publish.ps1`: `dotnet publish` Release self-contained win-x64 → `publish/AppTranslator/` + `publish/AppTranslator-<ngày>.zip` (131.8 MB), kiểm có model OCR, hồ sơ, hướng dẫn. Bản đóng gói chạy được (có OpenCV, ONNX Runtime, SQLite, SkiaSharp native). `docs/HuongDanCaiDat.md` (kèm trong zip): yêu cầu (gói OCR tiếng Anh, key Gemini), cài, lần dùng đầu, phím tắt, hai cách chụp, sự cố thường gặp, dữ liệu/gỡ cài đặt
+- [ ] Chạy thử bản zip trên máy khác (chưa có .NET) với Chiaki
 - [ ] **Gate 3:** đạt AC-01..AC-06
 
 ---
