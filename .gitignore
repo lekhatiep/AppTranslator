@@ -491,3 +491,6 @@ samples/**/images/
 # Káº¿t quáº£ benchmark (CSV, áº£nh sau tiá»n xá»­ lÃ½), sinh láº¡i Ä‘Æ°á»£c.
 samples/**/results/
 samples/**/videos/
+
+# Bảng câu dịch xuất cho khách chấm (AC-02/AC-04), có nội dung lịch sử dịch riêng.
+acceptance/
