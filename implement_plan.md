@@ -178,7 +178,8 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 
 ## Stage 9 – Hoàn thiện và nghiệm thu (M) · FR-08, FR-11 · Gate 3 · 🟡 đang làm (nhánh `stage_9`)
 - [x] UI cài đặt: nút "Cài đặt" → cỡ chữ, màu nền #RRGGBB, độ mờ (thanh trượt 0.3–1), 3 phím tắt, model Gemini; kiểm bằng `SettingsValidator` (khoảng giá trị, mã màu, phím tắt hợp lệ và không trùng; 11 test); lưu xong áp dụng ngay (đăng ký lại phím tắt, đổi model, vẽ lại overlay). Key, bộ dịch, engine chụp vẫn ở cửa sổ chính
-- [ ] UI sửa hồ sơ game; hồ sơ Witcher 3 thật
+- [x] UI hồ sơ game: nút "Sửa" / "Tạo mới" cạnh ô hồ sơ → tên game, gợi ý tiêu đề cửa sổ, văn phong, xưng hô, số câu ngữ cảnh, tên riêng (mỗi dòng một tên), thuật ngữ (mỗi dòng "Anh = Việt", dòng sai báo số dòng). `ProfileText` (9 test): đọc/ghi các ô, mã hồ sơ mới từ tên game không trùng. Lưu thì tăng Version (cache cũ của game không dùng lại)
+- [ ] Hồ sơ Witcher 3 thật *(chờ khách: văn phong, xưng hô theo nhân vật, thuật ngữ; gợi ý thêm "Ghouls and Alghouls" vì Gemini dịch mỗi lần một kiểu)*
 - [ ] Đo AC-01..AC-05 bằng Benchmark, xuất bảng cho khách chấm; kiểm AC-06 thủ công
 - [ ] `dotnet publish` self-contained win-x64 → zip + README cài đặt
 - [ ] **Gate 3:** đạt AC-01..AC-06

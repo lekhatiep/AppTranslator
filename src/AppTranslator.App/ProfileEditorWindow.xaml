@@ -1,0 +1,44 @@
+<Window x:Class="AppTranslator.App.ProfileEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Hồ sơ game" Width="640" Height="720" WindowStartupLocation="CenterOwner">
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Bottom">
+            <TextBlock x:Name="ErrorText" Foreground="#FFC62828" TextWrapping="Wrap" Margin="0,8,0,0" Visibility="Collapsed" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+                <Button Content="Lưu" Width="80" Margin="0,0,6,0" IsDefault="True" Click="OnSaveClick" />
+                <Button Content="Hủy" Width="80" IsCancel="True" />
+            </StackPanel>
+        </StackPanel>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+                <TextBlock Text="Tên game" FontWeight="SemiBold" />
+                <TextBox x:Name="GameNameBox" Margin="0,4,0,0" />
+
+                <TextBlock Text="Gợi ý tiêu đề cửa sổ (vd Chiaki): dùng để tự chọn đúng cửa sổ" FontWeight="SemiBold" Margin="0,12,0,0" />
+                <TextBox x:Name="WindowHintBox" Margin="0,4,0,0" />
+
+                <TextBlock Text="Văn phong" FontWeight="SemiBold" Margin="0,12,0,0" />
+                <TextBox x:Name="ToneBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="44" />
+
+                <TextBlock Text="Xưng hô (vd Geralt xưng 'ta'; Ciri gọi Geralt là 'chú', xưng 'con')" FontWeight="SemiBold" Margin="0,12,0,0" />
+                <TextBox x:Name="AddressingBox" Margin="0,4,0,0" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" />
+
+                <DockPanel Margin="0,12,0,0">
+                    <TextBox DockPanel.Dock="Right" x:Name="ContextLinesBox" Width="60" />
+                    <TextBlock Text="Số câu trước gửi kèm làm ngữ cảnh (0–10)" FontWeight="SemiBold" VerticalAlignment="Center" />
+                </DockPanel>
+
+                <TextBlock Text="Tên riêng giữ nguyên, không dịch (mỗi dòng một tên)" FontWeight="SemiBold" Margin="0,12,0,0" />
+                <TextBox x:Name="KeepNamesBox" Margin="0,4,0,0" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="100" />
+
+                <TextBlock Text="Thuật ngữ dịch cố định (mỗi dòng: tiếng Anh = tiếng Việt)" FontWeight="SemiBold" Margin="0,12,0,0" />
+                <TextBox x:Name="GlossaryBox" Margin="0,4,0,0" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Height="120" />
+
+                <TextBlock FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,8,0,0"
+                           Text="Vùng phụ đề và vùng lựa chọn chọn bằng nút &quot;Chọn vùng chữ&quot;. Lưu hồ sơ thì bản dịch cũ trong cache của game này không dùng lại nữa, để văn phong và thuật ngữ mới có hiệu lực." />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

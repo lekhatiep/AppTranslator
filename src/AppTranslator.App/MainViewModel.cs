@@ -555,13 +555,44 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Lưu hồ sơ (mới hoặc đã có) và chọn nó.</summary>
     private void SaveProfile(GameProfile profile)
     {
         _profileStore.Save(profile);
 
-        int index = Profiles.IndexOf(Profiles.First(p => p.Id == profile.Id));
-        Profiles[index] = profile;
+        var existing = Profiles.FirstOrDefault(p => p.Id == profile.Id);
+        if (existing is null)
+            Profiles.Add(profile);
+        else
+            Profiles[Profiles.IndexOf(existing)] = profile;
+
         SelectedProfile = profile;
+    }
+
+    [RelayCommand]
+    private void EditProfile()
+    {
+        if (SelectedProfile is not null)
+            OpenProfileEditor(SelectedProfile);
+    }
+
+    [RelayCommand]
+    private void NewProfile()
+    {
+        OpenProfileEditor(null);
+    }
+
+    private void OpenProfileEditor(GameProfile? profile)
+    {
+        var ids = Profiles.Select(p => p.Id).ToList();
+        var window = new ProfileEditorWindow(profile, ids) { Owner = Application.Current.MainWindow };
+        if (window.ShowDialog() != true || window.Result is null)
+            return;
+
+        SaveProfile(window.Result);
+        Status = profile is null
+            ? $"Đã tạo hồ sơ {window.Result.GameName}. Bấm \"Chọn vùng chữ\" để khoanh vùng phụ đề và lựa chọn."
+            : $"Đã lưu hồ sơ {window.Result.GameName} (phiên bản {window.Result.Version}).";
     }
 
     private void SaveSettings(AppSettings settings)
