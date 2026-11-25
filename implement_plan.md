@@ -155,11 +155,18 @@ Nguồn yêu cầu: [docs/DocApptTranslator.docx](docs/DocApptTranslator.docx) (
 - [x] Chạy thật (24/11, video Witcher 3 + Gemini free, 25 câu): phần app (chụp + chờ đứng yên + OCR + vẽ) ổn định ~350–480 ms; câu từ cache tổng ~400 ms; câu gọi Gemini tổng 1.5–3.0 s → p50 435 ms (19/25 câu từ cache vì xem lại video), p90 2110 ms. Đo trực tiếp Gemini lúc đó: 1.6 s – 42 s, có 503 "high demand"; không phải do chế độ suy nghĩ (0 token suy nghĩ). **Khách chọn giữ nguyên** (chấp nhận p90 phụ thuộc tải Gemini free); hướng khác: key trả phí, hoặc gọi song song Google Translate (mục bảo trì)
 - [ ] **Gate 2:** demo phụ đề cho khách
 
-## Stage 7 – Lựa chọn hội thoại (M) · FR-05
-- [ ] `ChoiceParser`: tách từng lựa chọn, bỏ số thứ tự và ▶
-- [ ] Nhận dòng đang chọn (màu / ▶), hiển thị lại số thứ tự, ▶ và màu nổi bật
-- [ ] Không dịch lại khi chỉ di chuyển lựa chọn (cache theo từng lựa chọn)
-
+## Stage 7 – Lựa chọn hội thoại (M) · FR-05 · 🟡 đang làm (nhánh `stage_7`)
+- [x] `ChoiceParser`: tách theo hàng (dùng chung cách gộp hàng của `SentenceAssembler`), dòng bắt đầu bằng số = lựa chọn mới, bỏ ▶/rác OCR trước số, chấp nhận "1." "1)" "1,"; dòng không số = phần xuống dòng của lựa chọn trên (8 test). 8 ảnh mẫu (PaddleOCR): đúng số lựa chọn và số thứ tự ở cả 8
+- [x] `SelectionMarker`: OCR không đọc ra ▶ và màu chữ không dùng được (ảnh 180920: đang chọn vàng, còn lại trắng; ảnh 224431: cả hai vàng) → đếm điểm ảnh vàng trong dải bên trái mỗi dòng, dòng nhiều nhất (≥15 điểm, gấp đôi dòng nhì) là dòng đang chọn (4 test). 8 ảnh mẫu: đều nhận ▶ ở lựa chọn 1 (đúng). *Chưa có ảnh thật ▶ ở lựa chọn 2/3*
+- [x] `ReaderLoop`: một vòng chụp chung 10 khung/giây đưa khung cho mọi bộ đọc (trước mỗi bộ đọc tự chụp → chụp 2 lần/khung). `SubtitleReader` thành bộ xử lý khung; video và 14 ảnh mẫu cho kết quả như cũ
+- [x] `ChoiceReader`: vùng lựa chọn đổi rồi đứng yên 300 ms → PaddleOCR (chạy nền) → `ChoiceParser` → ▶; mỗi khung dò lại ▶ (không OCR); đọc lại ra cùng các câu thì chỉ cập nhật ▶. Mặt nạ vùng lựa chọn dùng ngưỡng sáng 150 (chữ lựa chọn sáng nhất ~165; ngưỡng 200 của phụ đề làm sót 4/8 bảng ở cảnh tối). Bỏ dòng không số trước lựa chọn đầu (ảnh 224124 nền sáng ra ". N")
+- [x] Phát lại 14 ảnh mẫu qua vòng chung (phụ đề + lựa chọn): phụ đề 14/14, lựa chọn 8/8 bảng đúng số lựa chọn và ▶, không bảng giả; PaddleOCR 80–370 ms/bảng; CPU 1.9% máy
+- [x] Dịch từng lựa chọn song song, bộ dịch riêng (không chen vào ngữ cảnh phụ đề), cache chung theo từng câu; lưu lịch sử (loại Choices, không tính số đo độ trễ)
+- [x] Overlay: bảng lựa chọn đè từ dòng lựa chọn đầu (chừa chỗ che ▶ gốc) tới mép phải vùng, mỗi dòng "▶ 1. bản dịch", dòng đang chọn tô vàng; lỗi dịch hiện ⚠ ở dòng đầu kèm chữ gốc. Cửa sổ chính có ô "Lựa chọn hội thoại (Anh → Việt)"
+- [x] Không dịch lại khi chỉ di chuyển lựa chọn (chỉ vẽ lại ▶ và màu)
+- [x] Ảnh thật ▶ ở lựa chọn 2 (khách chụp 25/11, nền đá sáng): nhận đúng; điểm vàng bên trái 92 so với 0 ở dòng kia (ngưỡng 15 và gấp đôi). Thêm 2 ảnh `chrome-20261125-*` vào bộ mẫu + bản chép chuẩn vùng lựa chọn
+- [ ] Chạy thử trọn luồng lựa chọn trên video thật (dịch, overlay, di chuyển ▶)
+- Lưu ý: mỗi bảng tốn 1 lượt gọi Gemini cho mỗi lựa chọn chưa có trong cache (key free ~15 lượt/phút)
 ## Stage 8 – Chọn vùng thủ công (M, best effort) · FR-07
 - [ ] Phím tắt → khoanh vùng → OCR + dịch một lần → popup; tắt bằng phím tắt hoặc khi vùng đổi
 

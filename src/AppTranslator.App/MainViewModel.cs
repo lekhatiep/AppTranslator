@@ -26,12 +26,14 @@ public partial class MainViewModel : ObservableObject
     private readonly OverlayController _overlay;
     private readonly HotkeyService _hotkeys;
     private readonly SubtitleReader _subtitleReader;
+    private readonly ChoiceReader _choiceReader;
     private readonly SubtitleTranslator _subtitleTranslator;
     private readonly SecretStore _secrets;
     private readonly SqliteHistoryStore _history;
     private readonly ILogger<MainViewModel> _logger;
     private AppSettings _settings;
     private CancellationTokenSource? _readerCancellation;
+    private OverlayText? _overlaySubtitle;
 
     public MainViewModel(
         IProfileStore profileStore,
@@ -43,6 +45,7 @@ public partial class MainViewModel : ObservableObject
         OverlayController overlay,
         HotkeyService hotkeys,
         SubtitleReader subtitleReader,
+        ChoiceReader choiceReader,
         SubtitleTranslator subtitleTranslator,
         SecretStore secrets,
         SqliteHistoryStore history,
@@ -57,12 +60,16 @@ public partial class MainViewModel : ObservableObject
         _overlay = overlay;
         _hotkeys = hotkeys;
         _subtitleReader = subtitleReader;
+        _choiceReader = choiceReader;
         _subtitleTranslator = subtitleTranslator;
         _secrets = secrets;
         _history = history;
         _logger = logger;
         _subtitleReader.SentenceRead += OnSentenceRead;
         _subtitleReader.SubtitleCleared += OnSubtitleCleared;
+        _choiceReader.ChoicesRead += OnChoicesRead;
+        _choiceReader.SelectionChanged += OnChoiceSelectionChanged;
+        _choiceReader.ChoicesCleared += ClearChoices;
 
         Profiles = new ObservableCollection<GameProfile>(profileStore.LoadAll());
         _selectedTranslatorProvider = SubtitleTranslator.Providers.Contains(settings.TranslatorProvider)
@@ -142,7 +149,7 @@ public partial class MainViewModel : ObservableObject
 
         SaveSettings(_settings with { ActiveProfileId = value.Id });
         ClearTranslation();
-        RestartSubtitleReader();
+        RestartReaders();
 
         var matchingWindow = WindowFinder.FindByTitleHint(Windows, value.WindowTitleHint);
         if (matchingWindow is not null)
@@ -154,7 +161,7 @@ public partial class MainViewModel : ObservableObject
         // Bỏ viền vàng khỏi cửa sổ cũ; lần chụp sau tự mở phiên mới cho cửa sổ mới.
         _graphicsCapture.Stop();
         _overlay.SetTarget(value?.Handle ?? 0);
-        RestartSubtitleReader();
+        RestartReaders();
 
         if (value is null || SelectedProfile is null)
             return;
@@ -172,7 +179,7 @@ public partial class MainViewModel : ObservableObject
         _graphicsCapture.Stop();
         _overlay.SetCaptureEngine(value);
         SaveSettings(_settings with { CaptureEngine = value });
-        RestartSubtitleReader();
+        RestartReaders();
     }
 
     partial void OnIsTranslationEnabledChanged(bool value)
@@ -180,7 +187,7 @@ public partial class MainViewModel : ObservableObject
         _overlay.SetEnabled(value);
         Status = value ? "Đã bật dịch (overlay hiện khi cửa sổ nguồn đang được dùng)." : "Đã tắt dịch.";
         ClearTranslation();
-        RestartSubtitleReader();
+        RestartReaders();
     }
 
     partial void OnSelectedTranslatorProviderChanged(string value)
@@ -241,7 +248,8 @@ public partial class MainViewModel : ObservableObject
         ApiKeyHint = hasKey ? "Đã có key Gemini. Nhập key mới để thay, để trống rồi Lưu để xóa." : "Chưa có key Gemini.";
     }
 
-    private void RestartSubtitleReader()
+    /// <summary>Dừng vòng chụp cũ và chạy lại với các vùng của hồ sơ hiện tại (vùng nào chưa chọn thì bỏ qua).</summary>
+    private void RestartReaders()
     {
         _readerCancellation?.Cancel();
         _readerCancellation?.Dispose();
@@ -250,22 +258,52 @@ public partial class MainViewModel : ObservableObject
         if (!IsTranslationEnabled || SelectedWindow is null || SelectedProfile is null)
             return;
 
-        var region = SelectedProfile.Regions.FirstOrDefault(r => r.Type == RegionType.Subtitle);
-        if (region is null || region.W <= 0 || region.H <= 0)
+        var processors = new List<IFrameProcessor>();
+        try
         {
-            Status = "Hồ sơ chưa có vùng phụ đề: bấm \"Chọn vùng chữ\".";
+            var subtitleRegion = FindRegion(SelectedProfile, RegionType.Subtitle);
+            if (subtitleRegion is not null)
+            {
+                _subtitleReader.Start(subtitleRegion);
+                processors.Add(_subtitleReader);
+            }
+
+            var choicesRegion = FindRegion(SelectedProfile, RegionType.Choices);
+            if (choicesRegion is not null)
+            {
+                _choiceReader.Start(choicesRegion);
+                processors.Add(_choiceReader);
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            // Windows thiếu OCR tiếng Anh.
+            _logger.LogError(exception, "Không khởi động được bộ đọc");
+            Status = exception.Message;
+            return;
+        }
+
+        if (processors.Count == 0)
+        {
+            Status = "Hồ sơ chưa có vùng phụ đề hay vùng lựa chọn: bấm \"Chọn vùng chữ\".";
             return;
         }
 
         _readerCancellation = new CancellationTokenSource();
-        _ = RunSubtitleReaderAsync(SelectedWindow, region, _readerCancellation.Token);
+        _ = RunReadersAsync(SelectedWindow, processors, _readerCancellation.Token);
     }
 
-    private async Task RunSubtitleReaderAsync(WindowInfo window, Region region, CancellationToken cancellationToken)
+    private static Region? FindRegion(GameProfile profile, RegionType type)
+    {
+        var region = profile.Regions.FirstOrDefault(r => r.Type == type);
+        return region is null || region.W <= 0 || region.H <= 0 ? null : region;
+    }
+
+    private async Task RunReadersAsync(WindowInfo window, IReadOnlyList<IFrameProcessor> processors, CancellationToken cancellationToken)
     {
         try
         {
-            await _subtitleReader.RunAsync(token => CurrentCapture.CaptureAsync(window.Handle, token), region, cancellationToken);
+            await ReaderLoop.RunAsync(token => CurrentCapture.CaptureAsync(window.Handle, token), processors, _logger, cancellationToken);
         }
         catch (OperationCanceledException)
         {
@@ -273,8 +311,8 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception exception)
         {
-            _logger.LogError(exception, "Vòng đọc phụ đề dừng vì lỗi");
-            Status = $"Đọc phụ đề dừng vì lỗi: {exception.Message}";
+            _logger.LogError(exception, "Vòng đọc dừng vì lỗi");
+            Status = $"Đọc chữ dừng vì lỗi: {exception.Message}";
         }
     }
 
@@ -356,24 +394,33 @@ public partial class MainViewModel : ObservableObject
         ClearTranslation();
     }
 
+    /// <summary>Xóa cả bản dịch phụ đề và bảng lựa chọn đang hiện (đổi hồ sơ, tắt dịch, đổi bộ dịch).</summary>
     private void ClearTranslation()
     {
         _subtitleTranslator.Reset();
         LastTranslation = string.Empty;
         ShowOverlaySubtitle(null, null);
+        ClearChoices();
     }
 
     /// <summary>Hiện chữ ở vùng phụ đề của hồ sơ, đè lên khung chữ gốc (tỉ lệ cửa sổ) nếu biết; text null thì ẩn.</summary>
     private void ShowOverlaySubtitle(string? text, LayoutRect? originalTextBounds)
     {
         var region = SelectedProfile?.Regions.FirstOrDefault(r => r.Type == RegionType.Subtitle);
-        if (text is null || region is null)
-        {
-            _overlay.ShowTexts([], _settings.Overlay);
-            return;
-        }
+        _overlaySubtitle = text is null || region is null ? null : new OverlayText(region, text, originalTextBounds);
+        RefreshOverlay();
+    }
 
-        _overlay.ShowTexts([(region, text, originalTextBounds)], _settings.Overlay);
+    /// <summary>Vẽ lại overlay từ phần phụ đề và phần lựa chọn hiện có.</summary>
+    private void RefreshOverlay()
+    {
+        var texts = new List<OverlayText>();
+        if (_overlaySubtitle is not null)
+            texts.Add(_overlaySubtitle);
+        if (_overlayChoices is not null)
+            texts.Add(_overlayChoices);
+
+        _overlay.ShowTexts(texts, _settings.Overlay);
     }
 
     private void RegisterHotkeys()

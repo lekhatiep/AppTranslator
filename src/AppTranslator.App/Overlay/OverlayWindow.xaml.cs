@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Interop;
 using System.Windows.Media;
 using AppTranslator.App.Interop;
@@ -11,8 +12,9 @@ using AppTranslator.Core.Profiles;
 namespace AppTranslator.App.Overlay;
 
 /// <summary>Một khối chữ hiển thị đè lên vùng chữ gốc.</summary>
-/// <param name="Anchor">Khung chữ gốc (tỉ lệ cửa sổ) nếu biết; phụ đề sẽ đè đúng khung này thay vì phủ cả vùng.</param>
-internal sealed record OverlayText(Region Region, string Text, LayoutRect? Anchor = null);
+/// <param name="Anchor">Khung chữ gốc (tỉ lệ cửa sổ) nếu biết; chữ dịch sẽ đè đúng khung này thay vì phủ cả vùng.</param>
+/// <param name="HighlightedLine">Dòng (tách bằng \n) cần tô màu nổi bật: lựa chọn đang chọn.</param>
+public sealed record OverlayText(Region Region, string Text, LayoutRect? Anchor = null, int? HighlightedLine = null);
 
 /// <summary>Kiểu chữ của overlay, dựng từ OverlaySettings.</summary>
 internal sealed record OverlayStyle(double FontSize, Brush Background);
@@ -31,6 +33,19 @@ internal sealed record OverlayStyle(double FontSize, Brush Background);
 public partial class OverlayWindow : Window
 {
     private const double TextPadding = 6;
+
+    // Chỗ chừa bên trái dòng lựa chọn đầu (tính theo cỡ chữ) để che cả ký hiệu ▶ của game.
+    private const double ChoiceMarkerSpace = 1.5;
+
+    // Màu lựa chọn đang chọn, gần màu vàng của Witcher 3.
+    private static readonly Brush HighlightBrush = CreateFrozenBrush(Color.FromRgb(0xF2, 0xC1, 0x4E));
+
+    private static Brush CreateFrozenBrush(Color color)
+    {
+        var brush = new SolidColorBrush(color);
+        brush.Freeze();
+        return brush;
+    }
 
     private readonly bool _excludeFromCapture;
     private IReadOnlyList<OverlayText> _texts = [];
@@ -109,27 +124,60 @@ public partial class OverlayWindow : Window
         if (text.Region.Type == RegionType.Subtitle)
             return CreateSubtitleBox(text, style);
 
+        return CreateChoicesBox(text, style);
+    }
+
+    /// <summary>
+    /// Lựa chọn hội thoại (FR-05): mỗi dòng một lựa chọn, dòng đang chọn tô vàng như trong game. Ô bắt đầu ở dòng lựa chọn
+    /// đầu tiên (chừa chỗ bên trái để che cả ▶ gốc), kéo tới mép phải vùng, cao theo nội dung (lấn xuống dưới nếu dài).
+    /// Chưa biết khung chữ gốc thì phủ cả vùng.
+    /// </summary>
+    private Border CreateChoicesBox(OverlayText text, OverlayStyle style)
+    {
         var region = text.Region;
+        double regionLeft = region.X * ActualWidth;
+        double regionRight = (region.X + region.W) * ActualWidth;
+        double left = regionLeft;
+        double top = region.Y * ActualHeight;
+        double minHeight = region.H * ActualHeight;
+        if (text.Anchor is { } anchor)
+        {
+            left = Math.Max(regionLeft, anchor.X * ActualWidth - style.FontSize * ChoiceMarkerSpace);
+            top = anchor.Y * ActualHeight - TextPadding;
+            minHeight = anchor.Height * ActualHeight + 2 * TextPadding;
+        }
+
         var textBlock = new TextBlock
         {
-            Text = text.Text,
             FontSize = style.FontSize,
             Foreground = Brushes.White,
             TextWrapping = TextWrapping.Wrap,
-            TextAlignment = region.Type == RegionType.Subtitle ? TextAlignment.Center : TextAlignment.Left,
-            VerticalAlignment = VerticalAlignment.Center,
         };
+        string[] lines = text.Text.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            if (i > 0)
+                textBlock.Inlines.Add(new LineBreak());
 
+            var run = new Run(lines[i]);
+            if (i == text.HighlightedLine)
+                run.Foreground = HighlightBrush;
+            textBlock.Inlines.Add(run);
+        }
+
+        double width = Math.Max(1, regionRight - left);
         var border = new Border
         {
             Background = style.Background,
             Padding = new Thickness(TextPadding),
-            Width = region.W * ActualWidth,
-            Height = region.H * ActualHeight,
+            Width = width,
             Child = textBlock,
         };
-        Canvas.SetLeft(border, region.X * ActualWidth);
-        Canvas.SetTop(border, region.Y * ActualHeight);
+        // Đo để biết chiều cao thật (cần cho vùng cắt cửa sổ ở chế độ DXGI).
+        border.Measure(new Size(width, double.PositiveInfinity));
+        border.Height = Math.Max(minHeight, border.DesiredSize.Height);
+        Canvas.SetLeft(border, left);
+        Canvas.SetTop(border, top);
         return border;
     }
 
