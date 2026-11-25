@@ -51,6 +51,7 @@ public partial class App : Application
                 services.AddSingleton<HotkeyService>();
                 services.AddSingleton<SubtitleReader>();
                 services.AddSingleton<ChoiceReader>();
+                services.AddSingleton<AreaTextReader>();
                 services.AddSingleton<SecretStore>();
                 services.AddSingleton(_ => new SqliteTranslationCache(paths.DatabaseFile));
                 services.AddSingleton(_ => new SqliteHistoryStore(paths.DatabaseFile));

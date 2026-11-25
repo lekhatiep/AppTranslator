@@ -34,6 +34,8 @@ public sealed class SubtitleTranslator
     private TranslationService _service;
     // Lựa chọn dùng bộ dịch riêng để không chen vào ngữ cảnh câu thoại của phụ đề; dùng chung cache.
     private TranslationService _choiceService;
+    // Vùng khoanh thủ công (FR-07): bộ dịch riêng, không chen vào ngữ cảnh hội thoại.
+    private TranslationService _areaService;
     private int _sequence;
     private int _choiceSequence;
     private string _lastTranslatedSource = string.Empty;
@@ -46,6 +48,7 @@ public sealed class SubtitleTranslator
         _logger = logger;
         _service = new TranslationService(new MockTranslator(), cache: null);
         _choiceService = new TranslationService(new MockTranslator(), cache: null);
+        _areaService = new TranslationService(new MockTranslator(), cache: null);
     }
 
     public void UseProvider(string provider, string geminiModel)
@@ -55,12 +58,14 @@ public sealed class SubtitleTranslator
             var gemini = new GeminiTranslator(_httpClient, () => _secrets.Get(SecretStore.GeminiApiKey), geminiModel);
             _service = new TranslationService(gemini, _cache);
             _choiceService = new TranslationService(gemini, _cache);
+            _areaService = new TranslationService(gemini, _cache);
         }
         else
         {
             // Bản dịch giả không ghi vào cache, để không lẫn với bản dịch thật.
             _service = new TranslationService(new MockTranslator(), cache: null);
             _choiceService = new TranslationService(new MockTranslator(), cache: null);
+            _areaService = new TranslationService(new MockTranslator(), cache: null);
         }
 
         Reset();
@@ -147,6 +152,15 @@ public sealed class SubtitleTranslator
 
             return new ChoicesTranslation([], exception);
         }
+    }
+
+    /// <summary>
+    /// Dịch chữ trong vùng khoanh thủ công. Trả về null nếu chữ trông như rác (không gửi dịch).
+    /// Ném <see cref="TranslationException"/> khi lỗi key, quota, mạng...
+    /// </summary>
+    public Task<TranslatedLine?> TranslateAreaAsync(GameProfile profile, string text, CancellationToken cancellationToken = default)
+    {
+        return _areaService.TranslateAsync(profile, text, cancellationToken);
     }
 
     public Task ClearCacheAsync(string profileId)

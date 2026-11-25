@@ -42,6 +42,22 @@ public static class SentenceAssembler
         return new AssembledSentence(NormalizeSpaces(string.Join(" ", keptTexts)), bounds);
     }
 
+    /// <summary>
+    /// Vùng khoanh thủ công (FR-07: mô tả vật phẩm, nhật ký...): giữ mọi hàng, không lọc chữ lệch tâm, nối trên xuống.
+    /// </summary>
+    public static AssembledSentence AssembleAllRows(IReadOnlyList<OcrLine> lines)
+    {
+        var texts = new List<string>();
+        PixelRect? bounds = null;
+        foreach (var row in GroupIntoRows(lines))
+        {
+            texts.Add(row.Text);
+            bounds = bounds is null ? row.Bounds : bounds.Value.Union(row.Bounds);
+        }
+
+        return new AssembledSentence(NormalizeSpaces(string.Join(" ", texts)), bounds);
+    }
+
     /// <summary>Gộp các mảnh cùng hàng (trái sang phải), trả về các hàng theo thứ tự trên xuống. Dùng chung với ChoiceParser.</summary>
     internal static List<OcrLine> GroupIntoRows(IReadOnlyList<OcrLine> lines)
     {

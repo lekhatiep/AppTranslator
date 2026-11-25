@@ -30,6 +30,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SubtitleTranslator _subtitleTranslator;
     private readonly SecretStore _secrets;
     private readonly SqliteHistoryStore _history;
+    private readonly AreaTextReader _areaTextReader;
     private readonly ILogger<MainViewModel> _logger;
     private AppSettings _settings;
     private CancellationTokenSource? _readerCancellation;
@@ -49,6 +50,7 @@ public partial class MainViewModel : ObservableObject
         SubtitleTranslator subtitleTranslator,
         SecretStore secrets,
         SqliteHistoryStore history,
+        AreaTextReader areaTextReader,
         ILogger<MainViewModel> logger)
     {
         _profileStore = profileStore;
@@ -64,6 +66,7 @@ public partial class MainViewModel : ObservableObject
         _subtitleTranslator = subtitleTranslator;
         _secrets = secrets;
         _history = history;
+        _areaTextReader = areaTextReader;
         _logger = logger;
         _subtitleReader.SentenceRead += OnSentenceRead;
         _subtitleReader.SubtitleCleared += OnSubtitleCleared;
@@ -129,7 +132,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _lastTranslationTiming = string.Empty;
 
-    public string HotkeyHint => $"Phím tắt: {_settings.Hotkeys.ToggleTranslation} bật/tắt dịch, {_settings.Hotkeys.SelectRegion} chọn vùng chữ.";
+    public string HotkeyHint => $"Phím tắt: {_settings.Hotkeys.ToggleTranslation} bật/tắt dịch, {_settings.Hotkeys.SelectRegion} chọn vùng chữ, {_settings.Hotkeys.TranslateArea} khoanh vùng bất kỳ để dịch một lần (bấm lại để đóng).";
 
     private IScreenCapture CurrentCapture
     {
@@ -428,6 +431,7 @@ public partial class MainViewModel : ObservableObject
         var failures = new List<string>();
         RegisterHotkey(_settings.Hotkeys.ToggleTranslation, () => IsTranslationEnabled = !IsTranslationEnabled, failures);
         RegisterHotkey(_settings.Hotkeys.SelectRegion, () => SelectRegionsCommand.Execute(null), failures);
+        RegisterHotkey(_settings.Hotkeys.TranslateArea, () => _ = TranslateAreaAsync(), failures);
 
         if (failures.Count > 0)
             Status = "Không đăng ký được phím tắt: " + string.Join(", ", failures) + ". Sửa trong settings.json rồi mở lại app.";

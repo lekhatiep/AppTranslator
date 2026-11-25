@@ -13,6 +13,7 @@ internal static class NativeMethods
     public const long WsExNoActivate = 0x08000000;
 
     public static readonly nint HwndTopmost = -1;
+    public const uint SwpNoSize = 0x0001;
     public const uint SwpNoActivate = 0x0010;
     public const uint SwpShowWindow = 0x0040;
 
